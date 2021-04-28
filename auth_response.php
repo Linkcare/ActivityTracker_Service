@@ -1,15 +1,17 @@
 <?php
 require_once 'lib/default_conf.php';
 
+use FitbitOAuth2Client\Fitbit;
+
 if (!isset($_GET['state'])) {
-    // Missing field 'state' that will identify the admission
+    // Missing field 'state' that will identify the TASK from which the authorization was requested
     exit('Missing "state" field.');
 }
 
 if (isset($_GET['error']) && isset($_GET['error_description'])) {
     // An error has ocurred while getting the Fitbit permission.
     $fitbitResource = new FitbitResource(['errorCode' => $_GET['error'], 'errorDescription' => $_GET['error_description'],
-            'admissionId' => $_GET['state']]);
+            'taskId' => $_GET['state']]);
 } else {
 
     if (!isset($_GET['code'])) {
@@ -27,7 +29,7 @@ if (isset($_GET['error']) && isset($_GET['error_description'])) {
     }
 
     $fitbitResource = new FitbitResource(['access_token' => $accessToken->getToken(), 'refresh_token' => $accessToken->getRefreshToken(),
-            'expiration' => $accessToken->getExpires(), 'admissionId' => $_GET['state']]);
+            'expiration' => $accessToken->getExpires(), 'taskId' => $_GET['state']]);
 }
 
 $LC2redirect = storeAuthorizarionUrl($fitbitResource);

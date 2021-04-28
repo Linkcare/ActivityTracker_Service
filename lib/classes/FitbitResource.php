@@ -2,52 +2,28 @@
 use InvalidArgumentException;
 
 class FitbitResource {
-    /**
-     *
-     * @var string
-     */
+    /**  @var string */
     protected $accessToken;
 
-    /**
-     *
-     * @var string
-     */
+    /** @var string */
     protected $refreshToken;
 
-    /**
-     *
-     * @var int
-     */
+    /** @var int */
     protected $expiration;
 
-    /**
-     *
-     * @var string
-     */
+    /** @var string */
     protected $errorCode;
 
-    /**
-     *
-     * @var string
-     */
+    /** @var string */
     protected $errorDescription;
 
-    /**
-     *
-     * @var string
-     */
+    /** @var string */
     protected $admissionId;
 
-    /**
-     *
-     * @var string
-     */
+    /** @var string */
     protected $taskId;
 
-    /**
-     *
-     * @var array
-     */
+    /** @var array */
     protected $activityData = [];
 
     /**
@@ -85,5 +61,73 @@ class FitbitResource {
         if (!empty($options['activityData'])) {
             $this->activityData = $options['activityData'];
         }
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getAccessToken() {
+        return $this->accessToken;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getRefreshToken() {
+        return $this->refreshToken;
+    }
+
+    /**
+     *
+     * @return number
+     */
+    public function getExpiration() {
+        return $this->expiration;
+    }
+
+    /**
+     * Returns the expiration date (UTC) as a string with format YYYY-MM-DD hh:mm:ss.
+     *
+     * @return string
+     */
+    public function getExpirationDate() {
+        if ($this->expiration) {
+            return date('Y-m-d h:i:s', $this->expiration);
+        }
+        return null;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getErrorCode() {
+        return $this->errorCode;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getErrorDescription() {
+        return $this->errorDescription;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getAdmissionId() {
+        return $this->admissionId;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getTaskId() {
+        return $this->taskId;
     }
 }

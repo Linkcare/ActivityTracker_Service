@@ -17,10 +17,14 @@ class APITask {
     private $status;
     private $recursive;
     private $locked;
+    /** @var string */
+    private $admissionId;
+    /** @var string */
+    private $caseId;
 
-    /* @var APITaskAssignment[] $assignments */
+    /** @var APITaskAssignment[] $assignments */
     private $assignments = [];
-    /* @var APIForm[] $forms */
+    /** @var APIForm[] $forms */
     private $forms = [];
 
     /**
@@ -50,6 +54,12 @@ class APITask {
         $task->recursive = NullableString($xmlNode->recursive);
         $task->locked = textToBool($xmlNode->locked);
 
+        if ($xmlNode->admission) {
+            $task->admissionId = NullableString($xmlNode->admission->ref);
+        }
+        if ($xmlNode->case) {
+            $task->caseId = NullableString($xmlNode->case->ref);
+        }
         $assignments = [];
         if ($xmlNode->assignments) {
             foreach ($xmlNode->assignments->assignment as $assignNode) {
@@ -167,6 +177,22 @@ class APITask {
      */
     public function getForms() {
         return $this->forms;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getAdmissionId() {
+        return $this->admissionId;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getCaseId() {
+        return $this->caseId;
     }
 
     /*

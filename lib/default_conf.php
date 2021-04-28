@@ -1,7 +1,6 @@
 <?php
 session_start();
-
-require_once '/../vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 require_once ("utils.php");
 require_once ("WSAPI/WSAPI.php");
 require_once ("FitbitAPI/FitbitAPI.php");
@@ -27,3 +26,6 @@ if (file_exists(__DIR__ . '/../conf/configuration.php')) {
 }
 
 date_default_timezone_set($GLOBALS["DEFAULT_TIMEZONE"]);
+
+// Constants
+$GLOBALS['FORM_CODES']['AUTH_FORM'] = 'PAC_START_FORM';

@@ -1,6 +1,6 @@
 <?php
 
-namespace djchen\OAuth2\Client\Provider;
+namespace FitbitOAuth2Client;
 
 require_once 'FitbitOptionsProvider.php';
 require_once 'FitbitRateLimit.php';

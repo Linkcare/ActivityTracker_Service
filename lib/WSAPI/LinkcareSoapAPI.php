@@ -264,7 +264,7 @@ class LinkcareSoapAPI {
         $xml = new XMLHelper('task');
         $task->toXML($xml, null);
         $params = ["task" => $xml->toString()];
-        $resp = $this->invoke('task_set', $params);
+        $this->invoke('task_set', $params);
     }
 
     /**
@@ -579,8 +579,9 @@ class LinkcareSoapAPI {
             // Used for old API functions that do not return a standardized response
             return new APIResponse($result, null, null);
         } else {
-            $this->lastErrorCode = $result["ErrorCode"];
-            $this->lastErrorMessage = $result["ErrorMsg"];
+            if ($result["ErrorCode"]) {
+                throw new APIException($result["ErrorCode"], $result["ErrorMsg"], $result["result"]);
+            }
 
             return new APIResponse($result["result"], $result["ErrorCode"], $result["ErrorMsg"]);
         }

@@ -8,7 +8,7 @@ class APIForm {
     private $parentId;
     private $date;
     private $status;
-    /* @var APIQuestion[] $questions */
+    /** @var APIQuestion[] $questions */
     private $questions = [];
 
     /**
@@ -141,7 +141,7 @@ class APIForm {
      */
     public function findQuestion($questionId) {
         foreach ($this->questions as $q) {
-            if ($q->getQuestionTemplateId() == $questionId) {
+            if ($q->getQuestionTemplateId() == $questionId || $q->getItemCode() == $questionId) {
                 return $q;
             }
         }

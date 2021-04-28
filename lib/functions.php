@@ -5,25 +5,72 @@
  */
 
 /**
- * Request the activiy of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
+ * Request the activity of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
  *
- * @param string $token
- * @return string
+ * @param FitbitResource $fbRes
+ * @return LC2Action
  */
-function storeAuthorization($token) {
-    $lc2Action = new LC2Action(LC2Action::ACTION_ERROR_MSG);
-    $lc2Action->setErrorMessage('No action executed');
+function storeAuthorization($fbRes) {
+    $api = LinkcareSoapAPI::getInstance();
 
-    try {
-        $session = apiConnect($token);
-    } catch (APIException $e) {
-        $lc2Action = new LC2Action(LC2Action::ACTION_ERROR_MSG);
-        $lc2Action->setErrorMessage($e->getMessage());
-    } catch (Exception $e) {
-        service_log("ERROR: " . $e->getMessage());
+    $task = $api->task_get($fbRes->getTaskId());
+    $activityList = $api->task_activity_list($task->getId());
+
+    // Update the ITEMs of the authorization FORM with the information received
+    $authForm = null;
+    foreach ($activityList as $a) {
+        if ($a->getFormCode() == $GLOBALS['FORM_CODES']['AUTH_FORM']) {
+            $authForm = $api->form_get_summary($a->getId(), true, false);
+            break;
+        }
     }
 
-    return $lc2Action->toString();
+    if (!$authForm) {
+        $lc2Action = new LC2Action(LC2Action::ACTION_ERROR_MSG);
+        $lc2Action->setErrorMessage('AUTHORIZATION FORM NOT FOUND: Cannot update authorization data');
+        return $lc2Action;
+    }
+
+    $arrQuestions = [];
+    if ($authForm) {
+        if ($q = $authForm->findQuestion('RESPONSE')) {
+            $authorized = $fbRes->getErrorCode() ? '1' : '2';
+            $q->setValue($authorized);
+            $arrQuestions[] = $q;
+        }
+        if ($q = $authForm->findQuestion('ACCESS_TOKEN')) {
+            $q->setValue($fbRes->getAccessToken());
+            $arrQuestions[] = $q;
+        }
+        if ($q = $authForm->findQuestion('REFRESH_TOKEN')) {
+            $q->setValue($fbRes->getRefreshToken());
+            $arrQuestions[] = $q;
+        }
+        if ($q = $authForm->findQuestion('EXPIRATION')) {
+            $q->setValue($fbRes->getExpiration());
+            $arrQuestions[] = $q;
+        }
+        if ($q = $authForm->findQuestion('EXPIRATION_DATE')) {
+            $q->setValue($fbRes->getExpirationDate());
+            $arrQuestions[] = $q;
+        }
+        if ($q = $authForm->findQuestion('ERROR_CODE')) {
+            $q->setValue($fbRes->getErrorCode());
+            $arrQuestions[] = $q;
+        }
+        if ($q = $authForm->findQuestion('ERROR_DESCRIPTION')) {
+            $q->setValue($fbRes->getErrorDescription());
+            $arrQuestions[] = $q;
+        }
+        $api->form_set_all_answers($authForm->getId(), $arrQuestions, false);
+    }
+
+    $lc2Action = new LC2Action(LC2Action::ACTION_REDIRECT_TO_TASK);
+    $lc2Action->setAdmissionId($task->getAdmissionId());
+    $lc2Action->setCaseId($task->getCaseId());
+    $lc2Action->setTaskId($task->getId());
+
+    return $lc2Action;
 }
 
 /**
@@ -50,7 +97,19 @@ function update_activity() {
  * @return string
  */
 function storeAuthorizarionUrl(FitbitResource $resource) {
-    return $GLOBALS["LC2_LINK"] . '?action=authorize';
+    $query = [];
+    $query[] = 'task=' . urlencode($resource->getTaskId());
+    if ($resource->getErrorCode()) {
+        $query[] = 'error=' . urlencode($resource->getErrorDescription());
+        $query[] = 'error_code=' . urlencode($resource->getErrorCode());
+    } else {
+        $query[] = 'token=' . urlencode($resource->getAccessToken());
+        $query[] = 'refresh_token=' . urlencode($resource->getRefreshToken());
+        $query[] = 'exp=' . urlencode($resource->getExpiration());
+    }
+
+    $strQuery = implode('&', $query);
+    return $GLOBALS["LC2_LINK"] . '?do=authorize&' . $strQuery;
 }
 
 /**

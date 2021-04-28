@@ -33,6 +33,7 @@ class APIQuestion {
 
     // Private members
     private $id;
+    private $itemCode;
     private $questionTemplateId;
     private $code;
     private $name;
@@ -61,6 +62,7 @@ class APIQuestion {
         }
         $question = new APIQuestion();
         $question->id = NullableString($xmlNode->question_id);
+        $question->itemCode = NullableString($xmlNode->item_code);
         $question->questionTemplateId = NullableString($xmlNode->question_template_id);
 
         $question->order = intval((string) $xmlNode->order);
@@ -90,6 +92,14 @@ class APIQuestion {
      */
     public function getId() {
         return $this->id;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getItemCode() {
+        return $this->itemCode;
     }
 
     /**

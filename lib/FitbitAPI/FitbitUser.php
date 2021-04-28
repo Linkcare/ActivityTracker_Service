@@ -1,6 +1,6 @@
 <?php
 
-namespace djchen\OAuth2\Client\Provider;
+namespace FitbitOAuth2Client;
 
 use League\OAuth2\Client\Provider\ResourceOwnerInterface;
 
