@@ -1,9 +1,12 @@
 <?php
 session_start();
 
+require_once '/../vendor/autoload.php';
 require_once ("utils.php");
 require_once ("WSAPI/WSAPI.php");
+require_once ("FitbitAPI/FitbitAPI.php");
 require_once "classes/LC2Action.php";
+require_once "classes/FitbitResource.php";
 require_once "functions.php";
 
 $GLOBALS["LANG"] = "EN";
