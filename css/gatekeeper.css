@@ -1,0 +1,21 @@
+.circle {
+    height: 200px;
+    width: 200px;                
+    border-radius: 50%;
+    display: inline-block;
+}
+.red {
+    background-color: red;
+}
+.green{
+    background-color: green;
+}
+.orange-question{
+    font-size: 135;
+    color: orange;
+    height: 200px;
+    width: 200px;
+    border-radius: 50%;
+    border: 2px solid orange;
+    margin-left: 25%;
+} 

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions targetNamespace="http://linkcare.es/LINKCARE"
+                  xmlns="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:apachesoap="http://xml.apache.org/xml-soap"
+                  xmlns:intf="http://linkcare.es/LINKCARE"
+                  xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:wsdlsoap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+    
+    <wsdl:message name="update_activityRequest">
+        <wsdl:part name="task_id" type="xsd:string"/>
+        <wsdl:part name="date_from" type="xsd:string"/>
+        <wsdl:part name="date_to" type="xsd:string"/>
+    </wsdl:message>
+    <wsdl:message name="update_activityResponse">
+        <wsdl:part name="result" type="xsd:string"/>
+        <wsdl:part name="ErrorMsg" type="xsd:string"/>
+    </wsdl:message>
+
+    <wsdl:portType name="LINKCARE">
+        <wsdl:operation name="update_activity" parameterOrder="task_id date_from date_to result ErrorMsg">
+            <wsdl:input message="intf:update_activityRequest" name="update_activityRequest"/>
+            <wsdl:output message="intf:update_activityResponse" name="update_activityResponse"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+
+    <wsdl:binding name="LINKCARESoapBinding" type="intf:LINKCARE">
+        <wsdlsoap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="update_activity">
+            <wsdlsoap:operation soapAction="LINKCARE#update_activity"/>
+            <wsdl:input name="update_activityRequest">
+                <wsdlsoap:body
+                        encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                        namespace="http://linkcare.es/LINKCARE"
+                        use="encoded"/>
+            </wsdl:input>
+            <wsdl:output name="update_activityupdate_activityupdate_activityResponse">
+                <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                               namespace="http://linkcare.es/LINKCARE"
+                               use="encoded"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="LINKCARE">
+        <wsdl:port binding="intf:LINKCARESoapBinding" name="LINKCARE">
+            <wsdlsoap:address location="https://demo-api.linkcare.es/services/workflow/BRCA/Server.php"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>
