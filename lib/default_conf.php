@@ -13,6 +13,11 @@ $GLOBALS["DEFAULT_TIMEZONE"] = "Europe/Madrid";
 $GLOBALS["WS_LINK"] = "https://dev-api.linkcareapp.com/ServerWSDL.php";
 $GLOBALS["LC2_LINK"] = "https://dev.linkcareapp.com/apiservice/activity_tracker";
 
+// Fitbit credentials
+$GLOBALS['FITBIT_CLIENT_ID'] = 'client_key';
+$GLOBALS['FITBIT_CLIENT_SECRET'] = 'client_secret';
+$GLOBALS['FITBIT_REDIRECT_URI'] = 'redirect_uri';
+
 // Load particular configuration
 if (file_exists(__DIR__ . '/../conf/configuration.php')) {
     include_once __DIR__ . '/../conf/configuration.php';
