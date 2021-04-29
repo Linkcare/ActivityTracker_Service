@@ -7,6 +7,7 @@ require_once ("FitbitAPI/FitbitAPI.php");
 require_once "classes/LC2Action.php";
 require_once "classes/FitbitResource.php";
 require_once "functions.php";
+require_once "fitbit_functions.php";
 
 $GLOBALS["LANG"] = "EN";
 $GLOBALS["DEFAULT_TIMEZONE"] = "Europe/Madrid";

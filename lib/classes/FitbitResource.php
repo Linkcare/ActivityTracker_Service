@@ -23,9 +23,6 @@ class FitbitResource {
     /** @var string */
     protected $taskId;
 
-    /** @var array */
-    protected $activityData = [];
-
     /**
      * Constructs the Fitbit Resource object with the tokens and different data.
      *
@@ -57,9 +54,6 @@ class FitbitResource {
         }
         if (!empty($options['taskId'])) {
             $this->taskId = $options['taskId'];
-        }
-        if (!empty($options['activityData'])) {
-            $this->activityData = $options['activityData'];
         }
     }
 
@@ -129,5 +123,29 @@ class FitbitResource {
      */
     public function getTaskId() {
         return $this->taskId;
+    }
+
+    /**
+     *
+     * @param string $accessToken
+     */
+    public function setAccessToken($accessToken) {
+        $this->accessToken = $accessToken;
+    }
+
+    /**
+     *
+     * @param string $refreshToken
+     */
+    public function setRefreshToken($refreshToken) {
+        $this->refreshToken = $refreshToken;
+    }
+
+    /**
+     *
+     * @param string $expiration
+     */
+    public function setExpiration($expiration) {
+        $this->expiration = $expiration;
     }
 }

@@ -10,6 +10,7 @@ use Psr\Http\Message\ResponseInterface;
 
 class Fitbit extends AbstractProvider {
     use BearerAuthorizationTrait;
+    static $provider = null;
 
     /**
      * Fitbit URL.
@@ -48,6 +49,20 @@ class Fitbit extends AbstractProvider {
     public function __construct(array $options = [], array $collaborators = []) {
         $collaborators['optionProvider'] = new FitbitOptionsProvider($options['clientId'], $options['clientSecret']);
         parent::__construct($options, $collaborators);
+    }
+
+    /**
+     * Obtain the Fitbit provider using the global variables from the configuration
+     *
+     * @return Fitbit
+     */
+    static public function getProvider() {
+        if (self::$provider) {
+            return self::$provider;
+        }
+        self::$provider = new Fitbit(['clientId' => $GLOBALS['FITBIT_CLIENT_ID'], 'clientSecret' => $GLOBALS['FITBIT_CLIENT_SECRET'],
+                'redirectUri' => $GLOBALS['FITBIT_REDIRECT_URI']]);
+        return self::$provider;
     }
 
     /**
