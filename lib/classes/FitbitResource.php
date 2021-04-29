@@ -23,6 +23,9 @@ class FitbitResource {
     /** @var string */
     protected $taskId;
 
+    /** @var boolean */
+    private $hasChanged = false;
+
     /**
      * Constructs the Fitbit Resource object with the tokens and different data.
      *
@@ -31,10 +34,10 @@ class FitbitResource {
      */
     public function __construct(array $options = []) {
         if (!empty($options['access_token'])) {
-            $this->access_token = $options['access_token'];
+            $this->accessToken = $options['access_token'];
         }
         if (!empty($options['refresh_token'])) {
-            $this->refresh_token = $options['refresh_token'];
+            $this->refreshToken = $options['refresh_token'];
         }
         if (!empty($options['expiration'])) {
             if (!is_numeric($options['expiration'])) {
@@ -56,6 +59,12 @@ class FitbitResource {
             $this->taskId = $options['taskId'];
         }
     }
+
+    /*
+     * **********************************
+     * GETTERS
+     * **********************************
+     */
 
     /**
      *
@@ -125,11 +134,20 @@ class FitbitResource {
         return $this->taskId;
     }
 
+    /*
+     * **********************************
+     * SETTERS
+     * **********************************
+     */
+
     /**
      *
      * @param string $accessToken
      */
     public function setAccessToken($accessToken) {
+        if ($this->accessToken != $accessToken) {
+            $this->hasChanged = true;
+        }
         $this->accessToken = $accessToken;
     }
 
@@ -138,6 +156,9 @@ class FitbitResource {
      * @param string $refreshToken
      */
     public function setRefreshToken($refreshToken) {
+        if ($this->refreshToken != $refreshToken) {
+            $this->hasChanged = true;
+        }
         $this->refreshToken = $refreshToken;
     }
 
@@ -146,6 +167,56 @@ class FitbitResource {
      * @param string $expiration
      */
     public function setExpiration($expiration) {
+        if ($this->expiration != $expiration) {
+            $this->hasChanged = true;
+        }
         $this->expiration = $expiration;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function setErrorCode($errorCode) {
+        if ($errorCode) {
+            $this->accessToken = null;
+            $this->refreshToken = null;
+            $this->expiration = null;
+            $this->hasChanged = true;
+        }
+        $this->errorCode = $errorCode;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function setErrorDescription($errorDescription) {
+        $this->errorDescription = $errorDescription;
+    }
+
+    /*
+     * **********************************
+     * METHODS
+     * **********************************
+     */
+    /**
+     *
+     * @return boolean
+     */
+    public function isValid() {
+        if ($this->errorCode || !$this->accessToken || !$this->refreshToken || !$this->expiration) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     *
+     * @return boolean
+     */
+    public function changed() {
+        return $this->hasChanged;
     }
 }

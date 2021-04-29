@@ -201,6 +201,25 @@ class APITask {
      * **********************************
      */
     /**
+     *
+     * @param string $date
+     */
+    public function setDate($date) {
+        if ($date) {
+            $date = explode(' ', $date)[0]; // Remove time part
+        }
+        $this->date = $date;
+    }
+
+    /**
+     *
+     * @param string $date
+     */
+    public function setHour($time) {
+        $this->hour = $time;
+    }
+
+    /**
      * Adds a new assignment to a TASK
      *
      * @param unknown $assignment

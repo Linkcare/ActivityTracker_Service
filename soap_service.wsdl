@@ -10,8 +10,7 @@
 
     
     <wsdl:message name="update_activityRequest">
-        <wsdl:part name="task_id" type="xsd:string"/>
-        <wsdl:part name="date_from" type="xsd:string"/>
+        <wsdl:part name="task" type="xsd:string"/>
         <wsdl:part name="date_to" type="xsd:string"/>
     </wsdl:message>
     <wsdl:message name="update_activityResponse">
@@ -20,7 +19,7 @@
     </wsdl:message>
 
     <wsdl:portType name="LINKCARE">
-        <wsdl:operation name="update_activity" parameterOrder="task_id date_from date_to result ErrorMsg">
+        <wsdl:operation name="update_activity" parameterOrder="task date_to result ErrorMsg">
             <wsdl:input message="intf:update_activityRequest" name="update_activityRequest"/>
             <wsdl:output message="intf:update_activityResponse" name="update_activityResponse"/>
         </wsdl:operation>
@@ -37,7 +36,7 @@
                         namespace="http://linkcare.es/LINKCARE"
                         use="encoded"/>
             </wsdl:input>
-            <wsdl:output name="update_activityupdate_activityupdate_activityResponse">
+            <wsdl:output name="update_activityResponse">
                 <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
                                namespace="http://linkcare.es/LINKCARE"
                                use="encoded"/>

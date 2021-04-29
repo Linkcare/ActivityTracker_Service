@@ -19,7 +19,7 @@ function storeAuthorization($fbRes) {
     // Update the ITEMs of the authorization FORM with the information received
     $authForm = null;
     foreach ($activityList as $a) {
-        if ($a->getFormCode() == $GLOBALS['FORM_CODES']['AUTH_FORM']) {
+        if ($a->getFormCode() == $GLOBALS['FORM_CODES']['AUTH']) {
             $authForm = $api->form_get_summary($a->getId(), true, false);
             break;
         }
@@ -34,7 +34,7 @@ function storeAuthorization($fbRes) {
     $arrQuestions = [];
     if ($authForm) {
         if ($q = $authForm->findQuestion('RESPONSE')) {
-            $authorized = $fbRes->getErrorCode() ? '1' : '2';
+            $authorized = $fbRes->getErrorCode() ? '2' : '1';
             $q->setValue($authorized);
             $arrQuestions[] = $q;
         }
@@ -74,15 +74,134 @@ function storeAuthorization($fbRes) {
 }
 
 /**
- * ******************************** SOAP FUNCTIONS *********************************
- */
-/**
  * Request the activiy of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
  *
- * @param string $token
+ * @param string $taskId
+ * @param string $toDate
  * @return string
  */
-function update_activity() {
+function updatePatientActivity($taskId, $toDate) {
+    $api = LinkcareSoapAPI::getInstance();
+    $updateActivityTask = $api->task_get($taskId);
+    $admissionId = $updateActivityTask->getAdmissionId();
+
+    // Get Fitbit OAuth credentials
+    $filter = new TaskFilter();
+    $filter->setObjectType('TASKS');
+    $filter->setStatusIds('CLOSED');
+    $admissionTasks = $api->admission_get_task_list($admissionId, 100, 0, $filter, true);
+    /* @var APIForm $credentialsForm */
+    $credentialsForm = null;
+    foreach ($admissionTasks as $t) {
+        if ($t->getTaskCode() != $GLOBALS['TASK_CODES']['AUTH']) {
+            continue;
+        }
+        $forms = $api->task_activity_list($t->getId());
+        foreach ($forms as $f) {
+            if ($f->getFormCode() == $GLOBALS['FORM_CODES']['AUTH']) {
+                $credentialsForm = $api->form_get_summary($f->getId());
+                break;
+            }
+        }
+    }
+
+    if (!$credentialsForm) {
+        return ['result' => 'OK', 'ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
+    }
+
+    $options = [];
+    $fitbitCredentials = null;
+    foreach ($credentialsForm->getQuestions() as $q) {
+        if ($q->getItemCode() == 'ACCESS_TOKEN') {
+            $options['access_token'] = $q->getValue();
+        }
+        if ($q->getItemCode() == 'REFRESH_TOKEN') {
+            $options['refresh_token'] = $q->getValue();
+        }
+        if ($q->getItemCode() == 'EXPIRATION') {
+            $options['expiration'] = $q->getValue();
+        }
+    }
+    $fitbitCredentials = new FitbitResource($options);
+
+    if (!$fitbitCredentials || !$fitbitCredentials->isValid()) {
+        return ['result' => 'OK', 'ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
+    }
+
+    if (!$toDate) {
+        $toDate = 'today';
+    }
+
+    // Find last reported activity
+    $lastReportedDate = null;
+    foreach ($admissionTasks as $t) {
+        if ($t->getTaskCode() != $GLOBALS['TASK_CODES']['STEPS']) {
+            continue;
+        }
+        $lastReportedDate = $updateActivityTask->getDate();
+    }
+    if (!$lastReportedDate) {
+        // If there exists no previous TASK with steps, use as start date the ADMISSION enrollment date
+        $admission = $api->admission_get($admissionId);
+        $lastReportedDate = $admission->getEnrolDate();
+    }
+    if ($lastReportedDate) {
+        // Use only date part
+        $lastReportedDate = explode(' ', $lastReportedDate)[0];
+    }
+    // Request activity data to Fitbit
+    $steps = getActivityData($fitbitCredentials, $lastReportedDate, $toDate);
+    if (empty($steps)) {
+        return ['result' => 'OK', 'ErrorMsg' => ''];
+    }
+
+    // $steps[] = ['dateTime' => '2021-04-27', 'value' => '3224'];
+    foreach ($steps as $daySteps) {
+        $date = $daySteps['dateTime'];
+        $value = $daySteps['value'];
+        if ($value <= 0) {
+            continue;
+        }
+        createStepsTask($admissionId, $value, $date);
+    }
+
+    // Update OAuth tokens if they have changed
+    if ($fitbitCredentials->changed()) {
+        $arrQuestions = [];
+        foreach ($credentialsForm->getQuestions() as $q) {
+            if ($q = $credentialsForm->findQuestion('RESPONSE')) {
+                $authorized = $fitbitCredentials->getErrorCode() ? '2' : '1';
+                $q->setValue($authorized);
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('ACCESS_TOKEN')) {
+                $q->setValue($fitbitCredentials->getAccessToken());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('REFRESH_TOKEN')) {
+                $q->setValue($fitbitCredentials->getRefreshToken());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('EXPIRATION')) {
+                $q->setValue($fitbitCredentials->getExpiration());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('EXPIRATION_DATE')) {
+                $q->setValue($fitbitCredentials->getExpirationDate());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('ERROR_CODE')) {
+                $q->setValue($fitbitCredentials->getErrorCode());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('ERROR_DESCRIPTION')) {
+                $q->setValue($fitbitCredentials->getErrorDescription());
+                $arrQuestions[] = $q;
+            }
+            $api->form_set_all_answers($credentialsForm->getId(), $arrQuestions, false);
+        }
+    }
+
     return ['result' => 'OK', 'ErrorMsg' => ''];
 }
 
@@ -126,7 +245,8 @@ function apiConnect($token = null) {
     $session = null;
 
     try {
-        LinkcareSoapAPI::init($GLOBALS["WS_LINK"], $timezone, $token);
+        LinkcareSoapAPI::setEndpoint($GLOBALS["WS_LINK"]);
+        LinkcareSoapAPI::session_join($token, $timezone);
         $session = LinkcareSoapAPI::getInstance()->getSession();
     } catch (APIException $e) {
         throw $e;
@@ -136,3 +256,42 @@ function apiConnect($token = null) {
 
     return $session;
 }
+
+/**
+ * Inserts a new "STEPS" TASK in the ADMISSION
+ *
+ * @param string $admissionId
+ * @throws APIException
+ * @return string
+ */
+function createStepsTask($admissionId, $stepsNumber, $date) {
+    $api = LinkcareSoapAPI::getInstance();
+    $taskId = $api->task_insert_by_task_code($admissionId, $GLOBALS["TASK_CODES"]["STEPS"], $date);
+    if (!$taskId) {
+        // An unexpected error happened while creating the TASK
+        throw new APIException($api->errorCode(), $api->errorMessage());
+    }
+    $task = $api->task_get($taskId);
+
+    // TASK inserted. Now update the questions with the number of steps
+    $forms = $api->task_activity_list($taskId);
+    $stepsForm = null;
+    foreach ($forms as $f) {
+        if ($f->getFormCode() == $GLOBALS['FORM_CODES']['STEPS']) {
+            $stepsForm = $api->form_get_summary($f->getId());
+            break;
+        }
+    }
+
+    if ($stepsForm) {
+        if ($question = $stepsForm->findQuestion('STEPS')) {
+            $question->setValue($stepsNumber);
+            $api->form_set_answer($stepsForm->getId(), $question->getId(), $stepsNumber);
+            $task->setDate($date);
+            $api->task_set($task);
+        }
+    }
+
+    return $taskId;
+}
+

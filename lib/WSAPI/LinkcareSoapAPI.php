@@ -10,6 +10,9 @@ class LinkcareSoapAPI {
     private $lastErrorCode;
     private $lastErrorMessage;
 
+    /** @var SoapClient */
+    private static $soapClient;
+
     /**
      *
      * @param SoapClient $client
@@ -21,14 +24,14 @@ class LinkcareSoapAPI {
     }
 
     /**
+     * Prepares the connection with WS-API
      *
      * @param string $endpoint
-     * @param int $timezone
-     * @param string $token
-     * @return LinkcareSoapAPI
+     * @throws APIException
      */
-    static public function init($endpoint, $timezone, $token = null) {
+    public function setEndpoint($endpoint) {
         $wsdl = null; // $url . "/LINKCARE.wsdl.php";
+        $client = null;
 
         // Obtenemos el TOKEN si ya existe o iniciamos sesión si no existe
         // Cuando de error hay que borrar el TOKEN
@@ -36,15 +39,11 @@ class LinkcareSoapAPI {
         try {
             $client = new SoapClient($wsdl, ['location' => $endpoint, 'uri' => $uri, "connection_timeout" => 10]);
         } catch (SoapFault $fault) {
-            service_log("Error establishing connection! (faultcode: {$fault->faultcode}, faultstring: {$fault->faultstring}");
             $errorMsg = "ERROR: SOAP Fault: (faultcode: {$fault->faultcode}, faultstring: {$fault->faultstring})";
             throw new APIException("SOAP_ERROR", $errorMsg);
         }
 
-        $session = self::prepareAPISession($client, $token, $timezone);
-
-        self::$api = new LinkcareSoapAPI($client, $session);
-        return self::$api;
+        self::$soapClient = $client;
     }
 
     /**
@@ -78,6 +77,49 @@ class LinkcareSoapAPI {
      * API FUNCTIONS
      * **********************************
      */
+    /**
+     *
+     * @param string $user
+     * @param string $password
+     * @param number|string $timezone
+     * @throws APIException
+     */
+    static public function session_init($user, $password, $timezone = 0) {
+        if (is_numeric($timezone)) {
+            $timezone = $timezone <= 0 ? "-" . abs($timezone) : "+" . abs($timezone);
+        }
+        $client = self::$soapClient;
+        if (!$client) {
+            throw new APIException('ENDPOINT_MISSING', 'It is necessary to configure the endpoint before invoking WS-API');
+        }
+
+        $date = currentDate($timezone);
+        $result = $client->session_init($user, $password, null, null, null, null, null, $date);
+        if ($result["ErrorCode"]) {
+            throw new APIException($result["ErrorCode"], $result["ErrorMsg"]);
+        } else {
+            $session = APISession::parseResponse($result);
+        }
+
+        self::$api = new LinkcareSoapAPI($client, $session);
+        return self::$api;
+    }
+
+    /**
+     * Join an existing Session
+     *
+     * @param string $token
+     * @param string|number $timezone
+     * @return LinkcareSoapAPI
+     * @throws APIException
+     */
+    static public function session_join($token, $timezone = null) {
+        $session = self::prepareAPISession(self::$soapClient, $token, $timezone);
+
+        self::$api = new LinkcareSoapAPI(self::$soapClient, $session);
+        return self::$api;
+    }
+
     public function getSession() {
         return $this->session;
     }
@@ -236,6 +278,31 @@ class LinkcareSoapAPI {
     function admission_delete($admissionId) {
         $params = ["admission" => $admissionId];
         $this->invoke('admission_delete', $params);
+    }
+
+    /**
+     *
+     * @param string $admissionId
+     * @param int $maxRes
+     * @param int $offset
+     * @param TaskFilter $filter
+     * @param boolean $ascending
+     * @return APITask[]
+     */
+    public function admission_get_task_list($admissionId, $maxRes = null, $offset = null, $filter = null, $ascending = true) {
+        $taskList = [];
+        $params = ["admission" => $admissionId, "max_res" => $maxRes, "offset" => $offset, "filter" => $filter ? $filter->toString() : null,
+                "ascending" => $ascending ? "1" : 0];
+        $resp = $this->invoke('admission_get_task_list', $params);
+        if (!$resp->getErrorCode()) {
+            if ($found = simplexml_load_string($resp->getResult())) {
+                foreach ($found->task as $taskNode) {
+                    $taskList[] = APITask::parseXML($taskNode);
+                }
+            }
+        }
+
+        return array_filter($taskList);
     }
 
     /**
@@ -422,14 +489,17 @@ class LinkcareSoapAPI {
 
     /**
      *
-     * @param int $caseId
-     * @param boolean $get
-     * @param int $subscriptionId
+     * @param string $caseId
+     * @param int $maxRes
+     * @param int $offset
+     * @param TaskFilter $filter
+     * @param boolean $ascending
      * @return APITask[]
      */
     public function case_get_task_list($caseId, $maxRes = null, $offset = null, $filter = null, $ascending = true) {
         $taskList = [];
-        $params = ["case" => $caseId, "max_res" => $maxRes, "offset" => $offset, "filter" => $filter, "ascending" => $ascending ? "1" : 0];
+        $params = ["case" => $caseId, "max_res" => $maxRes, "offset" => $offset, "filter" => $filter ? $filter->toString() : null,
+                "ascending" => $ascending ? "1" : 0];
         $resp = $this->invoke('case_get_task_list', $params);
         if (!$resp->getErrorCode()) {
             if ($found = simplexml_load_string($resp->getResult())) {
@@ -513,36 +583,12 @@ class LinkcareSoapAPI {
         $session = null;
 
         try {
-            if (!$token) {
-                $timezone = $timezone <= 0 ? "-" . abs($timezone) : "+" . abs($timezone);
-                $date = currentDate($timezone);
-                $result = $client->session_init($GLOBALS["USER"], $GLOBALS["PWD"], null, null, null, null, null, $date);
-                if ($result["ErrorCode"]) {
-                    service_log("session_init error " . $result["ErrorMsg"]);
-                    throw new APIException($result["ErrorCode"], $result["ErrorMsg"]);
-                } else {
-                    $session = APISession::parseResponse($result);
-                }
-
-                $result = $client->session_language($token, $GLOBALS["LANG"]);
-                if ($result["ErrorCode"]) {
-                    service_log("session_language error " . $result["ErrorMsg"]);
-                    throw new APIException($result["ErrorCode"], $result["ErrorMsg"]);
-                }
-
-                $result = $client->session_role($token, $GLOBALS["ROLE"]);
-                if ($result["ErrorCode"]) {
-                    service_log("session_role error " . $result["ErrorMsg"]);
-                    throw new APIException($result["ErrorCode"], $result["ErrorMsg"]);
-                }
+            $result = $client->session_get($token);
+            if ($result["ErrorCode"]) {
+                service_log("session_get error " . $result["ErrorMsg"]);
+                throw new APIException($result["ErrorCode"], $result["ErrorMsg"]);
             } else {
-                $result = $client->session_get($token);
-                if ($result["ErrorCode"]) {
-                    service_log("session_get error " . $result["ErrorMsg"]);
-                    throw new APIException($result["ErrorCode"], $result["ErrorMsg"]);
-                } else {
-                    $session = APISession::parseResponse($result);
-                }
+                $session = APISession::parseResponse($result);
             }
         } catch (SoapFault $fault) {
             $errorMsg = "ERROR: SOAP Fault: (faultcode: {$fault->faultcode}, faultstring: {$fault->faultstring})";
@@ -563,6 +609,11 @@ class LinkcareSoapAPI {
     private function invoke($functionName, $params, $returnRaw = false) {
         $this->lastErrorCode = null;
         $this->lastErrorMessage = null;
+
+        if (!$this->client) {
+            throw new APIException('ENDPOINT_MISSING', 'It is necessary to configure the endpoint before invoking WS-API');
+        }
+
         try {
             $args = [new SoapParam($this->session->getToken(), "session")];
             foreach ($params as $paramName => $paramValue) {

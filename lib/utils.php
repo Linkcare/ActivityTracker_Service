@@ -1,6 +1,17 @@
 <?php
 
 /**
+ * Returns true if the string $needle is found exactly at the begining of $haystack
+ *
+ * @param string $needle
+ * @param string $haystack
+ * @return boolean
+ */
+function startsWith($needle, $haystack) {
+    return (strpos($haystack, $needle) === 0);
+}
+
+/**
  * Returns true if the $value passed is strictly equal to null or an empty string or a string composed only by spaces
  *
  * @param string $value

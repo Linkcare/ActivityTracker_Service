@@ -44,10 +44,11 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
         $endDate = 'today';
     }
 
-    $accessToken = new AccessToken(['access_token' => $resource->getAccesToken(), 'refresh_token' => $resource->getRefreshToken(),
+    $accessToken = new AccessToken(['access_token' => $resource->getAccessToken(), 'refresh_token' => $resource->getRefreshToken(),
             'expires_in' => ($resource->getExpiration() - time())]);
 
     if ($accessToken->hasExpired()) {
+        /* TODO: Rubén, ¿qué pasa si falla? Se deberían hacer $resource->setErrorCode() y $resource->setErrorDescription() con los datos del error */
         $accessToken = refreshToken(Fitbit::getProvider(), $resource->getRefreshToken());
         $resource->setAccessToken($accessToken->getToken());
         $resource->setRefreshToken($accessToken->getRefreshToken());
@@ -59,7 +60,16 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
     $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
             ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
 
+    /*
+     * TODO: Rubén, ¿qué pasa si falla? aunque no es probable que pase, deberíamos controlar un posible error.
+     * Se podría generar a mano un $request incorrecto para ver qué pasa y asegurar que no se genere una excepción descontrolada
+     * y que nos damos cuenta de que algo va mal.
+     * Se deberían hacer $resource->setErrorCode() y $resource->setErrorDescription() con los datos del error
+     */
     $response = Fitbit::getProvider()->getParsedResponse($request);
+    if (!$response) {
+        $response = [];
+    }
 
     return $response['activities-steps'];
 }

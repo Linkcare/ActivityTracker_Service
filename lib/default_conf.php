@@ -29,4 +29,8 @@ if (file_exists(__DIR__ . '/../conf/configuration.php')) {
 date_default_timezone_set($GLOBALS["DEFAULT_TIMEZONE"]);
 
 // Constants
-$GLOBALS['FORM_CODES']['AUTH_FORM'] = 'PAC_START_FORM';
+$GLOBALS['TASK_CODES']['AUTH'] = 'PAC_START';
+$GLOBALS['TASK_CODES']['STEPS'] = 'PAC_STEPS';
+
+$GLOBALS['FORM_CODES']['AUTH'] = 'PAC_START_FORM';
+$GLOBALS['FORM_CODES']['STEPS'] = 'PAC_STEPS_FORM';

@@ -9,3 +9,8 @@ $requires = glob(__DIR__ . '/objects/*.php');
 foreach ($requires as $filename) {
     require_once ($filename);
 }
+
+$requires = glob(__DIR__ . '/SupportClasses/*.php');
+foreach ($requires as $filename) {
+    require_once ($filename);
+}
