@@ -1,5 +1,4 @@
 <?php
-use InvalidArgumentException;
 
 class FitbitResource {
     /**  @var string */
