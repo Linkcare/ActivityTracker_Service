@@ -29,12 +29,19 @@ function refreshToken($refresh_token) {
  * <li>'["dateTime" => "yyyy-MM-dd","value" => "NUMBER"]]</li>
  * </ul>
  *
+ * Possible error codes returned in FitbitResource:
+ * <ul>
+ * <li>refresh_token_error: there was an error while refreshing the expired token.</li>
+ * <li>request_error: there was an error while obtaining the activity data.</li>
+ * <li>unknown_error: the obtained data has changed its format or there was an uncaught error.</li>
+ * </ul>
+ *
  * @param FitbitResource $resource
  * @param string $startDate date as 'yyyy-MM-dd'
  * @param string $endDate date as 'yyyy-MM-dd'
  * @param string $locale
  * @return array
- * @throws \League\OAuth2\Client\Provider\Exception\IdentityProviderException When the API request has failed
+ *
  */
 function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale = 'es_ES') {
     if (!$startDate) {
@@ -48,29 +55,48 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
             'expires_in' => ($resource->getExpiration() - time())]);
 
     if ($accessToken->hasExpired()) {
-        /* TODO: Rubén, ¿qué pasa si falla? Se deberían hacer $resource->setErrorCode() y $resource->setErrorDescription() con los datos del error */
-        $accessToken = refreshToken(Fitbit::getProvider(), $resource->getRefreshToken());
-        $resource->setAccessToken($accessToken->getToken());
-        $resource->setRefreshToken($accessToken->getRefreshToken());
-        $resource->setExpiration($accessToken->getExpires());
+        try {
+            $accessToken = refreshToken(Fitbit::getProvider(), $resource->getRefreshToken());
+            $resource->setAccessToken($accessToken->getToken());
+            $resource->setRefreshToken($accessToken->getRefreshToken());
+            $resource->setExpiration($accessToken->getExpires());
+            $validToken = true;
+        } catch (Exception $e) {
+            // The call was wrongly performed.
+            $resource->setErrorCode("refresh_token_error");
+            $resource->setErrorDescription($e->getMessage());
+            $validToken = false;
+        }
+    } else {
+        $validToken = true;
     }
 
-    // Obtain the activity data from FITBIT
-    $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/steps/date/' . $startDate . '/' . $endDate . '.json';
-    $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
-            ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
+    // Perform the request to the Fitbit API only if we have a valid token to do so
+    if ($validToken) {
+        try {
+            // Obtain the activity data from FITBIT
+            $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/steps/date/' . $startDate . '/' . $endDate . '.json';
+            $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
+                    ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
 
-    /*
-     * TODO: Rubén, ¿qué pasa si falla? aunque no es probable que pase, deberíamos controlar un posible error.
-     * Se podría generar a mano un $request incorrecto para ver qué pasa y asegurar que no se genere una excepción descontrolada
-     * y que nos damos cuenta de que algo va mal.
-     * Se deberían hacer $resource->setErrorCode() y $resource->setErrorDescription() con los datos del error
-     */
-    $response = Fitbit::getProvider()->getParsedResponse($request);
-    if (!$response) {
-        $response = [];
+            $response = Fitbit::getProvider()->getParsedResponse($request);
+        } catch (Exception $e) {
+            // Failed to perform the request.
+            $resource->setErrorCode("request_error");
+            $resource->setErrorDescription($e->getMessage());
+        }
     }
 
-    return $response['activities-steps'];
+    if (!$response['activities-steps'] || !$validToken) {
+        if ($resource->getErrorCode() == null) {
+            $resource->setErrorCode('unknown_error');
+        }
+        if ($resource->getErrorDescription() == null) {
+            $resource->setErrorDescription('The obtained data has changed its format or the token was invalid.');
+        }
+        return [];
+    } else {
+        return $response['activities-steps'];
+    }
 }
 ?>
