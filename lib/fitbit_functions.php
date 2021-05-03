@@ -60,43 +60,38 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
             $resource->setAccessToken($accessToken->getToken());
             $resource->setRefreshToken($accessToken->getRefreshToken());
             $resource->setExpiration($accessToken->getExpires());
-            $validToken = true;
         } catch (Exception $e) {
             // The call was wrongly performed.
             $resource->setErrorCode("refresh_token_error");
             $resource->setErrorDescription($e->getMessage());
-            $validToken = false;
+            return [];
         }
-    } else {
-        $validToken = true;
     }
 
     // Perform the request to the Fitbit API only if we have a valid token to do so
-    if ($validToken) {
-        try {
-            // Obtain the activity data from FITBIT
-            $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/steps/date/' . $startDate . '/' . $endDate . '.json';
-            $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
-                    ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
+    try {
+        // Obtain the activity data from FITBIT
+        $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/steps/date/' . $startDate . '/' . $endDate . '.json';
+        $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
+                ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
 
-            $response = Fitbit::getProvider()->getParsedResponse($request);
-        } catch (Exception $e) {
-            // Failed to perform the request.
-            $resource->setErrorCode("request_error");
-            $resource->setErrorDescription($e->getMessage());
-        }
+        $response = Fitbit::getProvider()->getParsedResponse($request);
+    } catch (Exception $e) {
+        // Failed to perform the request.
+        $resource->setErrorCode("request_error");
+        $resource->setErrorDescription($e->getMessage());
     }
 
-    if (!$response['activities-steps'] || !$validToken) {
+    if (!$response || !$response['activities-steps']) {
         if ($resource->getErrorCode() == null) {
             $resource->setErrorCode('unknown_error');
         }
         if ($resource->getErrorDescription() == null) {
-            $resource->setErrorDescription('The obtained data has changed its format or the token was invalid.');
+            $resource->setErrorDescription('Some error happened when requesting activity information.');
         }
         return [];
-    } else {
-        return $response['activities-steps'];
     }
+
+    return $response['activities-steps'];
 }
 ?>
