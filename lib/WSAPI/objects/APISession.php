@@ -6,6 +6,7 @@ class APISession {
     private $language;
     private $roleId;
     private $teamId;
+    private $teamCode;
     private $name;
     private $professionalId;
     private $caseId;
@@ -25,15 +26,16 @@ class APISession {
         if (array_key_exists("result", $sessionInfo)) {
             // session_get response
             if ($xml = simplexml_load_string($sessionInfo["result"])) {
-                $session->token = (string) $xml->token;
-                $session->userId = (string) $xml->user;
-                $session->language = (string) $xml->language;
-                $session->roleId = (string) $xml->role;
-                $session->teamId = (string) $xml->team;
-                $session->name = (string) $xml->name;
-                $session->professionalId = (string) $xml->professional;
-                $session->caseId = (string) $xml->case;
-                $session->associateId = (string) $xml->associate;
+                $session->token = trim($xml->token);
+                $session->userId = trim($xml->user);
+                $session->language = trim($xml->language);
+                $session->roleId = intval(trim($xml->role));
+                $session->teamId = trim($xml->team);
+                $session->teamCode = trim($xml->team_code);
+                $session->name = trim($xml->name);
+                $session->professionalId = trim($xml->professional);
+                $session->caseId = trim($xml->case);
+                $session->associateId = trim($xml->associate);
             }
         } else {
             // session_init response
@@ -42,6 +44,7 @@ class APISession {
             $session->language = $sessionInfo["language"];
             $session->roleId = $sessionInfo["role"];
             $session->teamId = $sessionInfo["team"];
+            $session->teamCode = $sessionInfo["team_code"];
             $session->name = $sessionInfo["name"];
             $session->professionalId = $sessionInfo["professional"];
             $session->caseId = $sessionInfo["case"];
@@ -73,6 +76,10 @@ class APISession {
 
     public function getTeamId() {
         return $this->teamId;
+    }
+
+    public function getTeamCode() {
+        return $this->teamCode;
     }
 
     public function getName() {

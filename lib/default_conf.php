@@ -16,6 +16,11 @@ $GLOBALS["DEFAULT_TIMEZONE"] = "Europe/Madrid";
 $GLOBALS["WS_LINK"] = "https://dev-api.linkcareapp.com/ServerWSDL.php";
 $GLOBALS["LC2_LINK"] = "https://dev.linkcareapp.com/apiservice/activity_tracker";
 
+// Credentials of the SERVICE USER
+$GLOBALS['SERVICE_USER'] = 'service';
+$GLOBALS['SERVICE_PASSWORD'] = 'password';
+$GLOBALS['SERVICE_TEAM'] = 'LINKCARE';
+
 // Fitbit credentials
 $GLOBALS['FITBIT_CLIENT_ID'] = 'client_key';
 $GLOBALS['FITBIT_CLIENT_SECRET'] = 'client_secret';
