@@ -134,11 +134,13 @@ function updatePatientActivity($taskId, $toDate) {
 
     // Find last reported activity
     $lastReportedDate = null;
+    $lastReportedTask = null;
     foreach ($admissionTasks as $t) {
         if ($t->getTaskCode() != $GLOBALS['TASK_CODES']['STEPS']) {
             continue;
         }
-        $lastReportedDate = $updateActivityTask->getDate();
+        $lastReportedDate = $t->getDate();
+        $lastReportedTask = $t;
     }
     if (!$lastReportedDate) {
         // If there exists no previous TASK with steps, use as start date the ADMISSION enrollment date
@@ -151,6 +153,9 @@ function updatePatientActivity($taskId, $toDate) {
     }
     // Request activity data to Fitbit
     $steps = getActivityData($fitbitCredentials, $lastReportedDate, $toDate);
+    if ($fitbitCredentials->getErrorCode()) {
+        return ['result' => 'KO', 'ErrorMsg' => $fitbitCredentials->getErrorDescription()];
+    }
     if (empty($steps)) {
         return ['result' => 'OK', 'ErrorMsg' => ''];
     }
@@ -158,11 +163,19 @@ function updatePatientActivity($taskId, $toDate) {
     // $steps[] = ['dateTime' => '2021-04-27', 'value' => '3224'];
     foreach ($steps as $daySteps) {
         $date = $daySteps['dateTime'];
+        if ($date < $lastReportedDate) {
+            // Theoretically this could not happen because we have requested steps from the last reporte TASK
+            continue;
+        }
         $value = $daySteps['value'];
         if ($value <= 0) {
             continue;
         }
-        createStepsTask($admissionId, $value, $date);
+        if ($lastReportedTask && $lastReportedTask->getDate() == $date) {
+            updateStepsTask($lastReportedTask, $value, $date);
+        } else {
+            createStepsTask($admissionId, $value, $date);
+        }
     }
 
     // Update OAuth tokens if they have changed
@@ -287,10 +300,29 @@ function createStepsTask($admissionId, $stepsNumber, $date) {
         // An unexpected error happened while creating the TASK
         throw new APIException($api->errorCode(), $api->errorMessage());
     }
-    $task = $api->task_get($taskId);
 
+    $task = $api->task_get($taskId);
+    updateStepsTask($task, $stepsNumber, $date);
+
+    return $taskId;
+}
+
+/**
+ * Updates the number of steps in the TASK provided
+ *
+ * @param APITask $task
+ * @param int $stepsNumber
+ * @param string $date
+ * @throws APIException
+ */
+function updateStepsTask($task, $stepsNumber, $date) {
+    if (!$task) {
+        return;
+    }
+
+    $api = LinkcareSoapAPI::getInstance();
     // TASK inserted. Now update the questions with the number of steps
-    $forms = $api->task_activity_list($taskId);
+    $forms = $api->task_activity_list($task->getId());
     $stepsForm = null;
     foreach ($forms as $f) {
         if ($f->getFormCode() == $GLOBALS['FORM_CODES']['STEPS']) {
@@ -307,7 +339,4 @@ function createStepsTask($admissionId, $stepsNumber, $date) {
             $api->task_set($task);
         }
     }
-
-    return $taskId;
 }
-

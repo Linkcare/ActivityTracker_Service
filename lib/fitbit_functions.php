@@ -44,6 +44,10 @@ function refreshToken($refresh_token) {
  *
  */
 function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale = 'es_ES') {
+    // ONLY FOR DEBUG
+    // $steps = [['dateTime' => '2021-05-03', 'value' => '3224'], ['dateTime' => '2021-05-04', 'value' => '2864'],
+    // ['dateTime' => '2021-05-05', 'value' => '9230']];
+    // return $steps;
     if (!$startDate) {
         $startDate = '2021-01-01';
     }
@@ -56,7 +60,7 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
 
     if ($accessToken->hasExpired()) {
         try {
-            $accessToken = refreshToken(Fitbit::getProvider(), $resource->getRefreshToken());
+            $accessToken = refreshToken($resource->getRefreshToken());
             $resource->setAccessToken($accessToken->getToken());
             $resource->setRefreshToken($accessToken->getRefreshToken());
             $resource->setExpiration($accessToken->getExpires());

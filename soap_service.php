@@ -1,4 +1,5 @@
 <?php
+error_reporting(E_ERROR); // Do not report warnings to avoid undesired characters in output stream
 ini_set("soap.wsdl_cache_enabled", 0);
 
 // Link the config params

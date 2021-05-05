@@ -96,7 +96,7 @@ class FitbitResource {
      */
     public function getExpirationDate() {
         if ($this->expiration) {
-            return date('Y-m-d h:i:s', $this->expiration);
+            return date('Y-m-d H:i:s', $this->expiration);
         }
         return null;
     }

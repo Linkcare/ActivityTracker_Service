@@ -1,4 +1,5 @@
 <?php
+error_reporting(E_ERROR); // Do not report warnings to avoid undesired characters in output stream
 
 // Link the config params
 require_once ("lib/default_conf.php");

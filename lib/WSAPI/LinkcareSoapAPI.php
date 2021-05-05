@@ -94,7 +94,7 @@ class LinkcareSoapAPI {
         }
 
         $date = currentDate($timezone);
-        $result = $client->session_init($user, $password, null, null, null, null, null, $date);
+        $result = $client->session_init($user, $password, null, null, null, '2.7.20', null, $date);
         if ($result["ErrorCode"]) {
             throw new APIException($result["ErrorCode"], $result["ErrorMsg"]);
         } else {

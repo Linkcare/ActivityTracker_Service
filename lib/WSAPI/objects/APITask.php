@@ -46,8 +46,13 @@ class APITask {
         $task->name = NullableString($xmlNode->name);
         $task->description = NullableString($xmlNode->description);
 
-        $task->date = NullableString($xmlNode->date);
+        $date = NullableString($xmlNode->date);
+        $dateParts = $date ? explode(' ', $date) : [null];
+        $task->date = $dateParts[0];
         $task->hour = NullableString($xmlNode->hour);
+        if (!$task->hour && count($dateParts) > 1) {
+            $task->hour = $dateParts[1];
+        }
         $task->duration = NullableInt($xmlNode->duration);
         $task->followReport = NullableString($xmlNode->follow_report);
         $task->status = NullableString($xmlNode->status);
