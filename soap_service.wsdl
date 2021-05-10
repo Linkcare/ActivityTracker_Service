@@ -27,6 +27,16 @@
         <wsdl:part name="ErrorMsg" type="xsd:string"/>
     </wsdl:message>
 
+    <wsdl:message name="insert_new_goalRequest">
+        <wsdl:part name="task" type="xsd:string"/>
+        <wsdl:part name="patient_choice" type="xsd:string"/>
+        <wsdl:part name="date" type="xsd:string"/>
+    </wsdl:message>
+    <wsdl:message name="insert_new_goalResponse">
+        <wsdl:part name="result" type="xsd:string"/>
+        <wsdl:part name="ErrorMsg" type="xsd:string"/>
+    </wsdl:message>
+
 
     <wsdl:portType name="LINKCARE">
         <wsdl:operation name="update_activity" parameterOrder="task date result ErrorMsg">
@@ -37,6 +47,11 @@
         <wsdl:operation name="calculate_target_status" parameterOrder="task date result ErrorMsg">
             <wsdl:input message="intf:calculate_target_statusRequest" name="calculate_target_statusRequest"/>
             <wsdl:output message="intf:calculate_target_statusResponse" name="calculate_target_statusResponse"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="insert_new_goal" parameterOrder="task patient_choice date result ErrorMsg">
+            <wsdl:input message="intf:insert_new_goalRequest" name="insert_new_goalRequest"/>
+            <wsdl:output message="intf:insert_new_goalResponse" name="insert_new_goalResponse"/>
         </wsdl:operation>
     </wsdl:portType>
 
@@ -67,6 +82,21 @@
                         use="encoded"/>
             </wsdl:input>
             <wsdl:output name="calculate_target_statusResponse">
+                <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                               namespace="http://linkcare.es/LINKCARE"
+                               use="encoded"/>
+            </wsdl:output>
+        </wsdl:operation>
+
+        <wsdl:operation name="insert_new_goal">
+            <wsdlsoap:operation soapAction="LINKCARE#insert_new_goal"/>
+            <wsdl:input name="insert_new_goalRequest">
+                <wsdlsoap:body
+                        encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                        namespace="http://linkcare.es/LINKCARE"
+                        use="encoded"/>
+            </wsdl:input>
+            <wsdl:output name="insert_new_goalResponse">
                 <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
                                namespace="http://linkcare.es/LINKCARE"
                                use="encoded"/>

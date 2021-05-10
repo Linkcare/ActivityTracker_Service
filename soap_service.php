@@ -17,6 +17,7 @@ try {
     $server = new SoapServer("soap_service.wsdl");
     $server->addFunction("update_activity");
     $server->addFunction("calculate_target_status");
+    $server->addFunction("insert_new_goal");
     $server->handle();
 } catch (APIException $e) {
     service_log($e->getMessage());
@@ -56,9 +57,37 @@ function update_activity($task, $date = null) {
  * @param string $date
  */
 function calculate_target_status($task, $date = null) {
-    error_log("TASK: $task, DATE: $date");
     try {
         calculateTargetStatus('STEP', $task, $date);
+    } catch (APIException $e) {
+        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+    } catch (Exception $e) {
+        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+    }
+}
+
+/**
+ * Inserts the GOAL for the next week.
+ * This function should be invoked by a TASK inserted the first day of the new week, and shoud be called after 'calculate_target_status()' because it
+ * needs the TASK 'TARGET STATUS'.<br>
+ * The $date provided is the date in which the TARGET_STATUS TASK will be inserted. The calculation of the activity is done using the information of
+ * the previous week. If no $date is provided, then the date of the TASK will be used.<br>
+ * It is necessary to indicate the choice of the patient about how to increase the GOAL:
+ * <ul>
+ * <li>NULL: no choice</li>
+ * <li>1: Keep goal</li>
+ * <li>2: Increase 5m</li>
+ * <li>3: Increase 10m</li>
+ * </ul>
+ *
+ *
+ * @param string $task TASK that invokes the service function
+ * @param int $patientChoice
+ * @param string $date
+ */
+function insert_new_goal($task, $patientChoice = null, $date = null) {
+    try {
+        insertNewGoal($task, $patientChoice, $date);
     } catch (APIException $e) {
         return ['result' => '', 'ErrorMsg' => $e->getMessage()];
     } catch (Exception $e) {

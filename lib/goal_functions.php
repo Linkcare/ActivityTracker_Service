@@ -46,8 +46,89 @@ function calculateTargetStatus($algorithm, $taskId, $calcDate) {
             $status = STEP_calculate_new_goal($admission, $calcDate);
     }
     if (!empty($status)) {
-        storeTargetStatus($admission, $status);
+        insertTargetStatusTask($admission, $status);
     }
+}
+
+/**
+ * Inserts the GOAL for the next week.
+ * This function should be invoked by a TASK inserted the first day of the new week, and shoud be called after 'calculate_target_status()' because it
+ * needs the TASK 'TARGET STATUS'.<br>
+ * The $date provided is the date in which the TARGET_STATUS TASK will be inserted. The calculation of the activity is done using the information of
+ * the previous week. If no $date is provided, then the date of the TASK will be used.<br>
+ *
+ *
+ * @param string $task TASK that invokes the service function
+ * @param int $patientChoice
+ * @param string $date
+ */
+function insertNewGoal($taskId, $patientChoice, $calcDate) {
+    $api = LinkcareSoapAPI::getInstance();
+    $task = $api->task_get($taskId);
+    $admission = $api->admission_get($task->getAdmissionId());
+
+    if (!$calcDate) {
+        // Use the TASK date if no other date specified
+        $calcDate = $task->getDate();
+    }
+
+    // remove time part
+    $calcDate = explode(' ', $calcDate)[0];
+    $yesterday = date('Y-m-d', strtotime("-1 day", strtotime($calcDate)));
+
+    // Get the last TARGET STATUS to retrieve the possible GOAL choices
+    $filter = new TaskFilter();
+    $filter->setObjectType('TASKS');
+    $filter->setStatusIds('CLOSED');
+    $filter->setFromDate($yesterday);
+    $filter->setToDate($calcDate);
+    $filter->setTaskCodes($GLOBALS['TASK_CODES']['TARGET_STATUS']);
+
+    // Get the last PAC_GOALS TASK
+    $agrTaskList = $admission->getTaskList(1, 0, $filter, false);
+    /* @var APITask $goalTask */
+    $agrTask = empty($agrTaskList) ? null : reset($agrTaskList);
+    if (!$agrTask) {
+        return false;
+    }
+
+    /* @var APIForm $agrForm */
+    $agrForm = $agrTask->findForm($GLOBALS['FORM_CODES']['TARGET_STATUS']);
+    if (!$agrForm) {
+        return false;
+    }
+
+    $maxGoal = getMaxGoal($admission, $calcDate);
+
+    $goalKeep = 0;
+    $goal5m = 0;
+    $goal10m = 0;
+    if ($q = $agrForm->findQuestion($GLOBALS['ITEM_CODES']['TARGET_GOAL_BASE'])) {
+        $goalKeep = intval($q->getValue());
+    }
+    if (($q = $agrForm->findQuestion($GLOBALS['ITEM_CODES']['TARGET_GOAL_5M'])) && $q->getValue()) {
+        $goal5m = intval($q->getValue());
+    } else {
+        $goal5m = $goalKeep;
+    }
+    if (($q = $agrForm->findQuestion($GLOBALS['ITEM_CODES']['TARGET_GOAL_10M'])) && $q->getValue()) {
+        $goal10m = intval($q->getValue());
+    } else {
+        $goal10m = $goal5m;
+    }
+
+    switch ($patientChoice) {
+        case 2 :
+            $goalTheor = $goal5m;
+            break;
+        case 3 :
+            $goalTheor = $goal10m;
+            break;
+        default :
+            $goalTheor = $goalKeep;
+    }
+
+    insertNewGoalTask($admission, $goalTheor, $maxGoal);
 }
 
 /**
@@ -91,7 +172,7 @@ function STEP_calculate_new_goal($admission, $calcDate = null) {
     /* Check if the date for which the GOAL is calculated is inside an "agreement period", where the goal will not be increased */
     $inAgreementPeriod = dateIsInAgreementPeriod($admission, $firstDayInNextPeriod);
     if (!$inAgreementPeriod) {
-        $maxGoal = getMaxGoal($admission, $firstDayInNextPeriod);
+        $maxGoal = getMaxGoal($admission, $calcDate);
     }
 
     // get steps of today and some calculations relative to the whole week
@@ -196,19 +277,17 @@ function STEP_calculate_new_goal($admission, $calcDate = null) {
 
     // Round to hundreths
     $theorGoal = round($theorGoal, -2);
-    $goal5m = round($theorGoal, -2);
-    $goal10m = round($theorGoal, -2);
-
-    if ($maxGoal) {
-        $newGoal = min($theorGoal, $maxGoal);
-        $goal5m = min($goal5m, $maxGoal);
-        $goal10m = min($goal10m, $maxGoal);
+    if ($inAgreementPeriod) {
+        // In an AGREEMENT PERIOD the goal should not be increased
+        $goal5m = null;
+        $goal10m = null;
     } else {
-        $newGoal = $theorGoal;
+        $goal5m = round($goal5m, -2);
+        $goal10m = round($goal10m, -2);
     }
 
-    $return = ['STATUS' => $newStatus, 'GOAL_BASE' => $newGoal, 'GOAL_THEOR' => $theorGoal, 'GOAL_5M' => $goal5m, 'GOAL_10M' => $goal10m,
-            'MEDIAN6' => $median6, 'AVG4' => $stepStats['average'], 'VALID_DAYS' => $validDays, 'REACHED' => $daysReached, 'WEEK_STEPS' => $weekSteps,
+    $return = ['STATUS' => $newStatus, 'GOAL_BASE' => $theorGoal, 'GOAL_5M' => $goal5m, 'GOAL_10M' => $goal10m, 'MEDIAN6' => $median6,
+            'AVG4' => $stepStats['average'], 'VALID_DAYS' => $validDays, 'REACHED' => $daysReached, 'WEEK_STEPS' => $weekSteps,
             'AGREEMENT' => $inAgreementPeriod];
 
     if ($GLOBALS["debugHTML"]) {
@@ -251,7 +330,6 @@ function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) 
     $firstDayInNextPeriod = date('Y-m-d', strtotime("+1 days", strtotime($sunday)));
 
     $currentGoal = getCurrentGoal($admission, $sunday);
-    $maxGoal = 0;
     $theorGoal = $currentGoal;
 
     if ($GLOBALS["debugHTML"]) {
@@ -260,9 +338,6 @@ function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) 
 
     /* Check if the date for which the GOAL is calculated is inside an "agreement period", where the goal will not be increased */
     $inAgreementPeriod = dateIsInAgreementPeriod($admission, $firstDayInNextPeriod);
-    if (!$inAgreementPeriod) {
-        $maxGoal = getMaxGoal($admission, $firstDayInNextPeriod);
-    }
 
     // get steps of today and some calculations relative to the whole week
     $stepStats = getSteps($admission, $monday, $sunday, $currentGoal);
@@ -291,7 +366,6 @@ function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) 
     if ($GLOBALS["debugHTML"]) {
         echo ("calcDate = $calcDate<br/>");
         echo ("Period analyzed = $monday to $sunday<br/><br/>");
-        echo ("maximum_goal = $maxGoal<br/>");
         echo ("in_agreement_period = $inAgreementPeriod<br/>");
         echo ("valid_days = " . count($validDays) . "<br/>");
         echo ("mean4 = $mean4<br/>");
@@ -342,16 +416,8 @@ function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) 
     $theorGoal = round($theorGoal, -2);
     $goal5m = round($theorGoal, -2);
 
-    if ($maxGoal) {
-        $newGoal = min($theorGoal, $maxGoal);
-        $goal5m = min($goal5m, $maxGoal);
-    } else {
-        $newGoal = $theorGoal;
-    }
-
-    $return = ['STATUS' => $newStatus, 'GOAL_BASE' => $newGoal, 'GOAL_THEOR' => $theorGoal, 'GOAL_5M' => $goal5m, 'MEDIAN6' => $median,
-            'AVG4' => $mean4, 'VALID_DAYS' => count($validDays), 'REACHED' => $daysReached, 'WEEK_STEPS' => $weekSteps,
-            'AGREEMENT' => $inAgreementPeriod];
+    $return = ['STATUS' => $newStatus, 'GOAL_BASE' => $theorGoal, 'GOAL_5M' => $goal5m, 'MEDIAN6' => $median, 'AVG4' => $mean4,
+            'VALID_DAYS' => count($validDays), 'REACHED' => $daysReached, 'WEEK_STEPS' => $weekSteps, 'AGREEMENT' => $inAgreementPeriod];
 
     if ($GLOBALS["debugHTML"]) {
         echo ("Calculate new GOAL for date: $calcDate<br/>");
@@ -604,9 +670,9 @@ function getSteps($admission, $fromDate, $toDate, $goal = null) {
  * Creates a new TASK "TARGET_STATUS"
  *
  * @param APIAdmission $admission
- * @param string $status
+ * @param int[] $status
  */
-function storeTargetStatus($admission, $status) {
+function insertTargetStatusTask($admission, $status) {
     $api = LinkcareSoapAPI::getInstance();
     $taskId = $api->task_insert_by_task_code($admission->getId(), $GLOBALS["TASK_CODES"]["TARGET_STATUS"]);
     $task = $api->task_get($taskId);
@@ -658,13 +724,63 @@ function storeTargetStatus($admission, $status) {
 
         $api->form_set_all_answers($targetForm->getId(), $arrQuestions, true);
     } else {
-        throw new APIException("FORM NOT FOUND", "KIT INFO FORM NOT FOUND: (" . $GLOBALS["FORM_CODES"]["TARGET_STATUS"] . ")");
+        throw new APIException("FORM NOT FOUND", "FORM NOT FOUND: (" . $GLOBALS["FORM_CODES"]["TARGET_STATUS"] . ")");
     }
 
     // $task->clearAssignments();
     // $a = new APITaskAssignment(APITaskAssignment::SERVICE, null, null);
     // $task->addAssignments($a);
     // $api->task_set($task);
+
+    return $taskId;
+}
+
+/**
+ * Creates a new TASK "GOALS" with the goal for the patient in the next week
+ *
+ * @param APIAdmission $admission
+ * @param int $theorGoal Goal that should be assigned to the patient without checking any limitation
+ * @param int $maxGoal Maximum goal defined for the patient. If the new goal exceeds the maximum, then it will be limited to the maximum
+ */
+function insertNewGoalTask($admission, $theorGoal, $maxGoal) {
+    $limitExceeded = false;
+    if ($maxGoal) {
+        $limitExceeded = ($theorGoal >= $maxGoal);
+        $newGoal = min($theorGoal, $maxGoal);
+    } else {
+        $newGoal = $theorGoal;
+    }
+
+    $api = LinkcareSoapAPI::getInstance();
+    $taskId = $api->task_insert_by_task_code($admission->getId(), $GLOBALS["TASK_CODES"]["GOAL"]);
+    $task = $api->task_get($taskId);
+    $targetForm = $task->findForm($GLOBALS["FORM_CODES"]["GOAL"]);
+
+    $arrQuestions = [];
+    if ($targetForm) {
+
+        if ($q = $targetForm->findQuestion($GLOBALS["ITEM_CODES"]["GOAL"])) {
+            $q->setValue($newGoal);
+            $arrQuestions[] = $q;
+        }
+        if ($q = $targetForm->findQuestion($GLOBALS["ITEM_CODES"]["THEOR_GOAL"])) {
+            $q->setValue($theorGoal);
+            $arrQuestions[] = $q;
+        }
+
+        $api->form_set_all_answers($targetForm->getId(), $arrQuestions, true);
+    } else {
+        throw new APIException("FORM NOT FOUND", "FORM NOT FOUND: (" . $GLOBALS["FORM_CODES"]["TARGET_STATUS"] . ")");
+    }
+
+    // $task->clearAssignments();
+    // $a = new APITaskAssignment(APITaskAssignment::SERVICE, null, null);
+    // $task->addAssignments($a);
+    // $api->task_set($task);
+
+    if ($limitExceeded) {
+        // Insert a new EVENT indicating that the maximum GOAL has been exceeded
+    }
 
     return $taskId;
 }
