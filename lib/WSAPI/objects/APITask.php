@@ -25,7 +25,13 @@ class APITask {
     /** @var APITaskAssignment[] $assignments */
     private $assignments = [];
     /** @var APIForm[] $forms */
-    private $forms = [];
+    private $forms = null;
+    /** @var LinkcareSoapAPI $api */
+    private $api;
+
+    public function __construct() {
+        $this->api = LinkcareSoapAPI::getInstance();
+    }
 
     /**
      *
@@ -246,6 +252,25 @@ class APITask {
      */
     public function clearAssignments() {
         $this->assignments = [];
+    }
+
+    /**
+     * Searches the FORM with the $formId indicated
+     *
+     * @param int $formId
+     * @return APIForm
+     */
+    public function findForm($formId) {
+        if ($this->forms === null) {
+            $this->forms = $this->api->task_activity_list($this->id);
+        }
+        foreach ($this->forms as $f) {
+            if ($f->getId() == $formId || $f->getFormCode() == $formId) {
+                return $f;
+            }
+        }
+
+        return null;
     }
 
     /**

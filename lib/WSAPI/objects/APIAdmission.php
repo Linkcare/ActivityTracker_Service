@@ -24,6 +24,12 @@ class APIAdmission {
     private $ageToDisplay;
     private $subscription;
     private $isNewAdmission = false;
+    /** @var LinkcareSoapAPI $api */
+    private $api;
+
+    public function __construct() {
+        $this->api = LinkcareSoapAPI::getInstance();
+    }
 
     /**
      *
@@ -181,5 +187,42 @@ class APIAdmission {
      */
     public function getSubscription() {
         return $this->subscription;
+    }
+
+    /*
+     * **********************************
+     * METHODS
+     * **********************************
+     */
+    /**
+     *
+     * @param int $maxRes
+     * @param int $offset
+     * @param TaskFilter $filter
+     * @param boolean $ascending
+     * @return APITask[]
+     */
+    public function getTaskList($maxRes = null, $offset = null, $filter = null, $ascending = true) {
+        if (!$filter) {
+            $filter = new TaskFilter();
+        }
+        $filter->setObjectType('TASKS');
+        return $this->api->admission_get_task_list($this->id, $maxRes, $offset, $filter, $ascending);
+    }
+
+    /**
+     *
+     * @param int $maxRes
+     * @param int $offset
+     * @param TaskFilter $filter
+     * @param boolean $ascending
+     * @return APIEvent[]
+     */
+    public function getEventList($maxRes = null, $offset = null, $filter = null, $ascending = true) {
+        if (!$filter) {
+            $filter = new TaskFilter();
+        }
+        $filter->setObjectType('EVENTS');
+        return $this->api->admission_get_task_list($this->id, $maxRes, $offset, $filter, $ascending);
     }
 }

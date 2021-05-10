@@ -11,23 +11,38 @@
     
     <wsdl:message name="update_activityRequest">
         <wsdl:part name="task" type="xsd:string"/>
-        <wsdl:part name="date_to" type="xsd:string"/>
+        <wsdl:part name="date" type="xsd:string"/>
     </wsdl:message>
     <wsdl:message name="update_activityResponse">
         <wsdl:part name="result" type="xsd:string"/>
         <wsdl:part name="ErrorMsg" type="xsd:string"/>
     </wsdl:message>
 
+    <wsdl:message name="calculate_target_statusRequest">
+        <wsdl:part name="task" type="xsd:string"/>
+        <wsdl:part name="date" type="xsd:string"/>
+    </wsdl:message>
+    <wsdl:message name="calculate_target_statusResponse">
+        <wsdl:part name="result" type="xsd:string"/>
+        <wsdl:part name="ErrorMsg" type="xsd:string"/>
+    </wsdl:message>
+
+
     <wsdl:portType name="LINKCARE">
-        <wsdl:operation name="update_activity" parameterOrder="task date_to result ErrorMsg">
+        <wsdl:operation name="update_activity" parameterOrder="task date result ErrorMsg">
             <wsdl:input message="intf:update_activityRequest" name="update_activityRequest"/>
             <wsdl:output message="intf:update_activityResponse" name="update_activityResponse"/>
         </wsdl:operation>
-    </wsdl:portType>
 
+        <wsdl:operation name="calculate_target_status" parameterOrder="task date result ErrorMsg">
+            <wsdl:input message="intf:calculate_target_statusRequest" name="calculate_target_statusRequest"/>
+            <wsdl:output message="intf:calculate_target_statusResponse" name="calculate_target_statusResponse"/>
+        </wsdl:operation>
+    </wsdl:portType>
 
     <wsdl:binding name="LINKCARESoapBinding" type="intf:LINKCARE">
         <wsdlsoap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+
         <wsdl:operation name="update_activity">
             <wsdlsoap:operation soapAction="LINKCARE#update_activity"/>
             <wsdl:input name="update_activityRequest">
@@ -42,6 +57,22 @@
                                use="encoded"/>
             </wsdl:output>
         </wsdl:operation>
+
+        <wsdl:operation name="calculate_target_status">
+            <wsdlsoap:operation soapAction="LINKCARE#calculate_target_status"/>
+            <wsdl:input name="calculate_target_statusRequest">
+                <wsdlsoap:body
+                        encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                        namespace="http://linkcare.es/LINKCARE"
+                        use="encoded"/>
+            </wsdl:input>
+            <wsdl:output name="calculate_target_statusResponse">
+                <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                               namespace="http://linkcare.es/LINKCARE"
+                               use="encoded"/>
+            </wsdl:output>
+        </wsdl:operation>
+
     </wsdl:binding>
     <wsdl:service name="LINKCARE">
         <wsdl:port binding="intf:LINKCARESoapBinding" name="LINKCARE">

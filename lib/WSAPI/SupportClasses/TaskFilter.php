@@ -21,6 +21,10 @@ class TaskFilter {
     private $teamId = [];
     /** @var string[] **/
     private $caseId = [];
+    /** @var string[] **/
+    private $taskCode = [];
+    /** @var string[] **/
+    private $eventCode = [];
     /** @var boolean **/
     private $flagged;
     /** @var boolean **/
@@ -290,6 +294,30 @@ class TaskFilter {
 
     /**
      *
+     * @param string|string[] $value
+     */
+    public function setTaskCodes($value) {
+        if ((is_array($value) && empty($value)) || (!is_array($value) && isNullOrEmpty($value))) {
+            $this->taskCode = [];
+        } else {
+            $this->taskCode = is_array($value) ? $value : [$value];
+        }
+    }
+
+    /**
+     *
+     * @param string|string[] $value
+     */
+    public function setEventCodes($value) {
+        if ((is_array($value) && empty($value)) || (!is_array($value) && isNullOrEmpty($value))) {
+            $this->eventCode = [];
+        } else {
+            $this->eventCode = is_array($value) ? $value : [$value];
+        }
+    }
+
+    /**
+     *
      * @param boolean $value
      */
     public function setFlagged($value) {
@@ -352,6 +380,9 @@ class TaskFilter {
         }
         if (!empty($this->statusId)) {
             $obj->status = implode(',', $this->statusId);
+        }
+        if (!empty($this->taskCode)) {
+            $obj->code = implode(',', $this->taskCode);
         }
         if (!empty($this->roleId)) {
             $obj->role = implode(',', $this->roleId);

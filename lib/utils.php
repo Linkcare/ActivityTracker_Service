@@ -183,3 +183,42 @@ function setLanguage() {
     }
     Localization::init($lang);
 }
+
+/**
+ * Calculates the median value for an array of numbers
+ *
+ * @param float[] $arrValues
+ * @return float
+ */
+function array_median($arrValues) {
+    $res = 0;
+    sort($arrValues, SORT_NUMERIC);
+    $total = count($arrValues);
+    if ($total % 2 == 1) {
+        $pt1 = (int) (($total - 1) / 2);
+        $res = $arrValues[$pt1];
+    } else {
+        $pt1 = $total / 2;
+        $pt2 = $pt1 - 1;
+        $res = ($arrValues[$pt1] + $arrValues[$pt2]) / 2;
+    }
+
+    return $res;
+}
+
+/**
+ * Calculates the average value for an array of numbers
+ *
+ * @param float[] $arrValues
+ * @return float
+ */
+function array_average($arrValues) {
+    $res = 0;
+    foreach ($arrValues as $y) {
+        $res += $y;
+    }
+    $res = $res / count($arrValues);
+
+    return $res;
+}
+

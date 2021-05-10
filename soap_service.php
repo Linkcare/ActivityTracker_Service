@@ -16,6 +16,7 @@ try {
     // Initialize SOAP Server
     $server = new SoapServer("soap_service.wsdl");
     $server->addFunction("update_activity");
+    $server->addFunction("calculate_target_status");
     $server->handle();
 } catch (APIException $e) {
     service_log($e->getMessage());
@@ -26,9 +27,16 @@ try {
 /**
  * ******************************** SOAP FUNCTIONS *********************************
  */
-function update_activity($task, $date_to) {
+/**
+ * Request the activiy of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
+ *
+ * @param string $task
+ * @param string $date
+ * @return string
+ */
+function update_activity($task, $date = null) {
     try {
-        updatePatientActivity($task, $date_to);
+        updatePatientActivity($task, $date);
     } catch (APIException $e) {
         return ['result' => '', 'ErrorMsg' => $e->getMessage()];
     } catch (Exception $e) {
@@ -36,3 +44,24 @@ function update_activity($task, $date_to) {
     }
 }
 
+/**
+ * Calculates the target activity for this week based on the past week activity.
+ * The function creates a TASK 'TARGET_STATUS' with the information about the performance of the patient and the calculation of the next week's
+ * goal<br>
+ * The $date provided is the date in which the TARGET_STATUS TASK will be inserted. The calculation of the activity is done using the information of
+ * the previous week. If no $date is provided, then the date of the TASK will be used.<br>
+ * This function should be invoked by a TASK inserted the first day of the new week.
+ *
+ * @param string $task TASK that invokes the service function
+ * @param string $date
+ */
+function calculate_target_status($task, $date = null) {
+    error_log("TASK: $task, DATE: $date");
+    try {
+        calculateTargetStatus('STEP', $task, $date);
+    } catch (APIException $e) {
+        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+    } catch (Exception $e) {
+        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+    }
+}
