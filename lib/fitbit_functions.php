@@ -72,7 +72,6 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
         }
     }
 
-    // Perform the request to the Fitbit API only if we have a valid token to do so
     try {
         // Obtain the activity data from FITBIT
         $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/steps/date/' . $startDate . '/' . $endDate . '.json';
@@ -97,5 +96,93 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
     }
 
     return $response['activities-steps'];
+}
+
+/**
+ * Obtain intraday activity data for a specific day.
+ * Returned data is breakdown in the specified period series. It will have the following format:
+ * <ul>
+ * <li>'[{ "time": "00:00:00", "value": 0 },</li>
+ * <li>'{ "time": "00:01:00", "value": 287 },</li>
+ * <li>'{ "time": "00:02:00", "value": 287 }]</li>
+ * </ul>
+ *
+ * Available breakdown periods:
+ * <ul>
+ * <li>15min</li>
+ * <li>1min (default value)</li>
+ * </ul>
+ *
+ * Possible error codes returned in FitbitResource:
+ * <ul>
+ * <li>refresh_token_error: there was an error while refreshing the expired token.</li>
+ * <li>request_error: there was an error while obtaining the activity data.</li>
+ * <li>permissions_error: the application used to request the data doesn't have enough permissions to request intraday activity data.</li>
+ * <li>unknown_error: the obtained data has changed its format or there was an uncaught error.</li>
+ * </ul>
+ * Access to the Intraday Time Series: https://dev.fitbit.com/build/reference/web-api/intraday-requests/
+ *
+ * @param FitbitResource $resource
+ * @param string $date
+ * @param string $breakdownPeriod
+ * @param string $locale
+ * @return array
+ */
+function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, $locale = 'es_ES') {
+    if (!$date) {
+        $date = 'today';
+    }
+
+    $accessToken = new AccessToken(['access_token' => $resource->getAccessToken(), 'refresh_token' => $resource->getRefreshToken(),
+            'expires_in' => ($resource->getExpiration() - time())]);
+
+    if ($accessToken->hasExpired()) {
+        try {
+            $accessToken = refreshToken($resource->getRefreshToken());
+            $resource->setAccessToken($accessToken->getToken());
+            $resource->setRefreshToken($accessToken->getRefreshToken());
+            $resource->setExpiration($accessToken->getExpires());
+        } catch (Exception $e) {
+            // The call was wrongly performed.
+            $resource->setErrorCode("refresh_token_error");
+            $resource->setErrorDescription($e->getMessage());
+            return [];
+        }
+    }
+
+    try {
+        if (!$breakdownPeriod) {
+            $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/steps/date/' . $date . '/1d.json';
+        } else {
+            $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/steps/date/' . $date . '/1d/' . $breakdownPeriod . '.json';
+        }
+        var_dump($baseUrl);
+        // Obtain the activity data from FITBIT
+        $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
+                ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
+
+        $response = Fitbit::getProvider()->getParsedResponse($request);
+    } catch (Exception $e) {
+        // Failed to perform the request.
+        $resource->setErrorCode("request_error");
+        $resource->setErrorDescription($e->getMessage());
+    }
+    var_dump($response['activities-steps-intraday']['dataset']);
+    if (!$response || !$response['activities-steps-intraday']['dataset']) {
+        if ($response['activities-steps'] && !$response['activities-steps-intraday']['dataset']) {
+            $resource->setErrorCode("permissions_error");
+            $resource->setErrorDescription('Insufficient permissions for intraday activity data. See "Access to the Intraday Time Series".');
+        } else {
+            if ($resource->getErrorCode() == null) {
+                $resource->setErrorCode('unknown_error');
+            }
+            if ($resource->getErrorDescription() == null) {
+                $resource->setErrorDescription('Some error happened when requesting activity information.');
+            }
+        }
+        return [];
+    }
+
+    return $response['activities-steps-intraday']['dataset'];
 }
 ?>
