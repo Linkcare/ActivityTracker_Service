@@ -36,13 +36,17 @@ try {
  * @return string
  */
 function update_activity($task, $date = null) {
+    $errorMsg = null;
     try {
         updatePatientActivity($task, $date);
     } catch (APIException $e) {
-        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+        $errorMsg = $e->getMessage();
     } catch (Exception $e) {
-        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+        $errorMsg = $e->getMessage();
     }
+
+    $result = $errorMsg ? 0 : 1;
+    return ['result' => $result, 'ErrorMsg' => $errorMsg];
 }
 
 /**
@@ -57,13 +61,17 @@ function update_activity($task, $date = null) {
  * @param string $date
  */
 function calculate_target_status($task, $date = null) {
+    $errorMsg = null;
     try {
         calculateTargetStatus('STEP', $task, $date);
     } catch (APIException $e) {
-        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+        $errorMsg = $e->getMessage();
     } catch (Exception $e) {
-        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+        $errorMsg = $e->getMessage();
     }
+
+    $result = $errorMsg ? 0 : 1;
+    return ['result' => $result, 'ErrorMsg' => $errorMsg];
 }
 
 /**
