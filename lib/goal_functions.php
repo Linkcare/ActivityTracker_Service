@@ -48,6 +48,7 @@ function calculateTargetStatus($algorithm, $taskId, $calcDate) {
     if (!empty($status)) {
         insertTargetStatusTask($admission, $status);
     }
+    return ['ErrorMsg' => '', 'ErrorCode' => ''];
 }
 
 /**
@@ -129,6 +130,7 @@ function insertNewGoal($taskId, $patientChoice, $calcDate) {
     }
 
     insertNewGoalTask($admission, $goalTheor, $maxGoal);
+    return ['ErrorMsg' => '', 'ErrorCode' => ''];
 }
 
 /**

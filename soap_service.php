@@ -37,7 +37,8 @@ try {
 function update_activity($task, $date = null) {
     $errorMsg = null;
     try {
-        updatePatientActivity($task, $date);
+        $resp = updatePatientActivity($task, $date);
+        $errorMsg = $resp['ErrorMsg'];
     } catch (APIException $e) {
         $errorMsg = $e->getMessage();
     } catch (Exception $e) {
@@ -62,7 +63,8 @@ function update_activity($task, $date = null) {
 function calculate_target_status($task, $date = null) {
     $errorMsg = null;
     try {
-        calculateTargetStatus('STEP', $task, $date);
+        $resp = calculateTargetStatus('STEP', $task, $date);
+        $errorMsg = $resp['ErrorMsg'];
     } catch (APIException $e) {
         $errorMsg = $e->getMessage();
     } catch (Exception $e) {
@@ -94,10 +96,14 @@ function calculate_target_status($task, $date = null) {
  */
 function insert_new_goal($task, $patientChoice = null, $date = null) {
     try {
-        insertNewGoal($task, $patientChoice, $date);
+        $resp = insertNewGoal($task, $patientChoice, $date);
+        $errorMsg = $resp['ErrorMsg'];
     } catch (APIException $e) {
-        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+        $errorMsg = $e->getMessage();
     } catch (Exception $e) {
-        return ['result' => '', 'ErrorMsg' => $e->getMessage()];
+        $errorMsg = $e->getMessage();
     }
+
+    $result = $errorMsg ? 0 : 1;
+    return ['result' => $result, 'ErrorMsg' => $errorMsg];
 }

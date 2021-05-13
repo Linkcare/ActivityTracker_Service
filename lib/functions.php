@@ -106,7 +106,7 @@ function updatePatientActivity($taskId, $toDate) {
     }
 
     if (!$credentialsForm) {
-        return ['result' => 'OK', 'ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
+        return ['ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
     }
 
     $options = [];
@@ -125,7 +125,7 @@ function updatePatientActivity($taskId, $toDate) {
     $fitbitCredentials = new FitbitResource($options);
 
     if (!$fitbitCredentials || !$fitbitCredentials->isValid()) {
-        return ['result' => 'OK', 'ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
+        return ['ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
     }
 
     if (!$toDate) {
@@ -154,10 +154,10 @@ function updatePatientActivity($taskId, $toDate) {
     // Request activity data to Fitbit
     $steps = getActivityData($fitbitCredentials, $lastReportedDate, $toDate);
     if ($fitbitCredentials->getErrorCode()) {
-        return ['result' => 'KO', 'ErrorMsg' => $fitbitCredentials->getErrorDescription()];
+        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription()];
     }
     if (empty($steps)) {
-        return ['result' => 'OK', 'ErrorMsg' => ''];
+        return ['ErrorMsg' => '', 'ErrorCode' => ''];
     }
 
     // $steps[] = ['dateTime' => '2021-04-27', 'value' => '3224'];
@@ -215,7 +215,7 @@ function updatePatientActivity($taskId, $toDate) {
         }
     }
 
-    return ['result' => 'OK', 'ErrorMsg' => ''];
+    return ['ErrorMsg' => '', 'ErrorCode' => ''];
 }
 
 /**
