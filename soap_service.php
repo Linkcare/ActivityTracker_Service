@@ -10,8 +10,7 @@ setSystemTimeZone();
 error_reporting(0);
 try {
     // Init connection with WS-API
-    LinkcareSoapAPI::setEndpoint($GLOBALS["WS_LINK"]);
-    LinkcareSoapAPI::session_init($GLOBALS['SERVICE_USER'], $GLOBALS['SERVICE_PASSWORD']);
+    apiConnect(null, $GLOBALS['SERVICE_USER'], $GLOBALS['SERVICE_PASSWORD'], 47, $GLOBALS['SERVICE_TEAM'], true);
 
     // Initialize SOAP Server
     $server = new SoapServer("soap_service.wsdl");

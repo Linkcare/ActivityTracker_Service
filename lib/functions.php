@@ -257,7 +257,7 @@ function storeAuthorizarionUrl(FitbitResource $resource) {
  * @throws Exception
  * @return LinkcareSoapAPI
  */
-function apiConnect($token, $user = null, $password = null, $role = null, $team = null) {
+function apiConnect($token, $user = null, $password = null, $role = null, $team = null, $reuseExistingSession = false) {
     $timezone = "0";
     $session = null;
 
@@ -266,7 +266,7 @@ function apiConnect($token, $user = null, $password = null, $role = null, $team 
         if ($token) {
             LinkcareSoapAPI::session_join($token, $timezone);
         } else {
-            LinkcareSoapAPI::session_init($user, $password);
+            LinkcareSoapAPI::session_init($user, $password, 0, $reuseExistingSession);
         }
 
         $session = LinkcareSoapAPI::getInstance()->getSession();

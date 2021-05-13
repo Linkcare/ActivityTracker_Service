@@ -23,8 +23,8 @@ try {
     // apiConnect($_POST["token"]);
     switch ($action) {
         case 'authorize' :
-            // Connect as service user
-            apiConnect(null, $GLOBALS['SERVICE_USER'], $GLOBALS['SERVICE_PASSWORD'], 47, $GLOBALS['SERVICE_TEAM']);
+            // Connect as service user, reusing existing session if possible
+            apiConnect(null, $GLOBALS['SERVICE_USER'], $GLOBALS['SERVICE_PASSWORD'], 47, $GLOBALS['SERVICE_TEAM'], true);
             $options['errorCode'] = $_POST["error_code"];
             $options['errorDescription'] = $_POST["error"];
             $options['taskId'] = $_POST["task"];

@@ -82,9 +82,11 @@ class LinkcareSoapAPI {
      * @param string $user
      * @param string $password
      * @param number|string $timezone
+     * @param boolean $reuseExistingSession If true and a previous (non expired) session exists, then a new session will not be created, and the token
+     *        of the previous session will be used
      * @throws APIException
      */
-    static public function session_init($user, $password, $timezone = 0) {
+    static public function session_init($user, $password, $timezone = 0, $reuseExistingSession = false) {
         if (is_numeric($timezone)) {
             $timezone = $timezone <= 0 ? "-" . abs($timezone) : "+" . abs($timezone);
         }
@@ -94,7 +96,7 @@ class LinkcareSoapAPI {
         }
 
         $date = currentDate($timezone);
-        $result = $client->session_init($user, $password, null, null, null, '2.7.20', null, $date);
+        $result = $client->session_init($user, $password, null, null, null, '2.7.20', $reuseExistingSession ? 1 : 0, $date);
         if ($result["ErrorCode"]) {
             throw new APIException($result["ErrorCode"], $result["ErrorMsg"]);
         } else {
