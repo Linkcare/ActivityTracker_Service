@@ -37,6 +37,15 @@
         <wsdl:part name="ErrorMsg" type="xsd:string"/>
     </wsdl:message>
 
+    <wsdl:message name="insert_stepsRequest">
+        <wsdl:part name="admission" type="xsd:string"/>
+        <wsdl:part name="steps" type="xsd:string"/>
+    </wsdl:message>
+    <wsdl:message name="insert_stepsResponse">
+        <wsdl:part name="result" type="xsd:string"/>
+        <wsdl:part name="ErrorMsg" type="xsd:string"/>
+    </wsdl:message>
+
 
     <wsdl:portType name="LINKCARE">
         <wsdl:operation name="update_activity" parameterOrder="task date result ErrorMsg">
@@ -52,6 +61,11 @@
         <wsdl:operation name="insert_new_goal" parameterOrder="task patient_choice date result ErrorMsg">
             <wsdl:input message="intf:insert_new_goalRequest" name="insert_new_goalRequest"/>
             <wsdl:output message="intf:insert_new_goalResponse" name="insert_new_goalResponse"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="insert_steps" parameterOrder="admission steps result ErrorMsg">
+            <wsdl:input message="intf:insert_stepsRequest" name="insert_stepsRequest"/>
+            <wsdl:output message="intf:insert_stepsResponse" name="insert_stepsResponse"/>
         </wsdl:operation>
     </wsdl:portType>
 
@@ -97,6 +111,21 @@
                         use="encoded"/>
             </wsdl:input>
             <wsdl:output name="insert_new_goalResponse">
+                <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                               namespace="http://linkcare.es/LINKCARE"
+                               use="encoded"/>
+            </wsdl:output>
+        </wsdl:operation>
+
+        <wsdl:operation name="insert_steps">
+            <wsdlsoap:operation soapAction="LINKCARE#insert_steps"/>
+            <wsdl:input name="insert_stepsRequest">
+                <wsdlsoap:body
+                        encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                        namespace="http://linkcare.es/LINKCARE"
+                        use="encoded"/>
+            </wsdl:input>
+            <wsdl:output name="insert_stepsResponse">
                 <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
                                namespace="http://linkcare.es/LINKCARE"
                                use="encoded"/>

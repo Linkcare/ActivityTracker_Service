@@ -17,6 +17,7 @@ try {
     $server->addFunction("update_activity");
     $server->addFunction("calculate_target_status");
     $server->addFunction("insert_new_goal");
+    $server->addFunction("insert_steps");
     $server->handle();
 } catch (APIException $e) {
     service_log($e->getMessage());
@@ -97,6 +98,34 @@ function calculate_target_status($task, $date = null) {
 function insert_new_goal($task, $patientChoice = null, $date = null) {
     try {
         $resp = insertNewGoal($task, $patientChoice, $date);
+        $errorMsg = $resp['ErrorMsg'];
+    } catch (APIException $e) {
+        $errorMsg = $e->getMessage();
+    } catch (Exception $e) {
+        $errorMsg = $e->getMessage();
+    }
+
+    $result = $errorMsg ? 0 : 1;
+    return ['result' => $result, 'ErrorMsg' => $errorMsg];
+}
+
+/**
+ * ONLY FOR DEBUG PURPOSES:
+ * Update the activiy of a patient adding the necessary "STEPS" TASKs with the data provided.
+ * The data mus be passed as a JSON string representing an array with the information with the following format:
+ * $steps = '[{"dateTime": "2021-04-27", "value": "3224"}, {"dateTime": "2021-04-28", "value": "5423"}...]'
+ *
+ * @param string $admission
+ * @param string $steps
+ * @return string
+ */
+function insert_steps($admission, $steps = null) {
+    $errorMsg = null;
+
+    $steps = json_decode($steps, true); // Convert string to an associative array
+
+    try {
+        $resp = insertCustomSteps($admission, $steps);
         $errorMsg = $resp['ErrorMsg'];
     } catch (APIException $e) {
         $errorMsg = $e->getMessage();

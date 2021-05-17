@@ -81,6 +81,10 @@ function storeAuthorization($fbRes) {
  * @return string
  */
 function updatePatientActivity($taskId, $toDate) {
+    if (!$toDate) {
+        $toDate = 'today';
+    }
+
     $api = LinkcareSoapAPI::getInstance();
     $updateActivityTask = $api->task_get($taskId);
     $admissionId = $updateActivityTask->getAdmissionId();
@@ -126,10 +130,6 @@ function updatePatientActivity($taskId, $toDate) {
 
     if (!$fitbitCredentials || !$fitbitCredentials->isValid()) {
         return ['ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
-    }
-
-    if (!$toDate) {
-        $toDate = 'today';
     }
 
     // Find last reported activity
@@ -212,6 +212,73 @@ function updatePatientActivity($taskId, $toDate) {
                 $arrQuestions[] = $q;
             }
             $api->form_set_all_answers($credentialsForm->getId(), $arrQuestions, false);
+        }
+    }
+
+    return ['ErrorMsg' => '', 'ErrorCode' => ''];
+}
+
+/**
+ * Insert "STEPS" TASKS with data provided manually
+ *
+ * @param string $admissionId
+ * @param Array $steps [['dateTime' => '2021-04-27', 'value' => '3224'], ...];
+ *       
+ * @return string
+ */
+function insertCustomSteps($admissionId, $steps) {
+    if (empty($steps)) {
+        return ['ErrorMsg' => '', 'ErrorCode' => ''];
+    }
+
+    $api = LinkcareSoapAPI::getInstance();
+
+    $minDate = null;
+    $maxDate = null;
+    foreach ($steps as $daySteps) {
+        $date = $daySteps['dateTime'];
+        if (!$minDate || $date < $minDate) {
+            $minDate = $date;
+        }
+        if (!$maxDate || $date > $maxDate) {
+            $maxDate = $date;
+        }
+    }
+
+    $filter = new TaskFilter();
+    $filter->setObjectType('TASKS');
+    $filter->setStatusIds('CLOSED');
+    $filter->setFromDate($minDate);
+    $filter->setToDate($maxDate);
+    $filter->setTaskCodes($GLOBALS['TASK_CODES']['STEPS']);
+
+    $tasks = $api->admission_get_task_list($admissionId, 100, 0, $filter, true);
+    foreach ($tasks as $t) {
+        $existingSteps[$t->getDate()] = $t;
+    }
+
+    $admission = $api->admission_get($admissionId);
+    $limitDate = $admission->getEnrolDate();
+
+    if ($limitDate) {
+        // Use only date part
+        $limitDate = explode(' ', $limitDate)[0];
+    }
+
+    foreach ($steps as $daySteps) {
+        $date = $daySteps['dateTime'];
+        if ($date < $limitDate) {
+            // Do not add steps previous to the ADMISSION enroll
+            continue;
+        }
+        $value = $daySteps['value'];
+        if ($value <= 0) {
+            continue;
+        }
+        if (array_key_exists($date, $existingSteps)) {
+            updateStepsTask($existingSteps[$date], $value, $date);
+        } else {
+            createStepsTask($admissionId, $value, $date);
         }
     }
 
