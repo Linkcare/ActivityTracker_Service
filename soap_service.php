@@ -20,8 +20,10 @@ try {
     $server->addFunction("insert_steps");
     $server->handle();
 } catch (APIException $e) {
+    log_trace('UNEXPECTED API ERROR executing SOAP function: ' . $e->getMessage());
     service_log($e->getMessage());
 } catch (Exception $e) {
+    log_trace('UNEXPECTED ERROR executing SOAP function: ' . $e->getMessage());
     service_log($e->getMessage());
 }
 
@@ -36,7 +38,9 @@ try {
  * @return string
  */
 function update_activity($task, $date = null) {
+    log_trace("UPDATE ACTIVITY. Task: $task, Date: $date");
     $errorMsg = null;
+
     try {
         $resp = updatePatientActivity($task, $date);
         $errorMsg = $resp['ErrorMsg'];
@@ -47,6 +51,9 @@ function update_activity($task, $date = null) {
     }
 
     $result = $errorMsg ? 0 : 1;
+    if ($errorMsg) {
+        log_trace("ERROR: $errorMsg", 1);
+    }
     return ['result' => $result, 'ErrorMsg' => $errorMsg];
 }
 
@@ -62,7 +69,9 @@ function update_activity($task, $date = null) {
  * @param string $date
  */
 function calculate_target_status($task, $date = null) {
+    log_trace("CALCULATE TARGET STATUS. Task: $task, Date: $date");
     $errorMsg = null;
+
     try {
         $resp = calculateTargetStatus('STEP', $task, $date);
         $errorMsg = $resp['ErrorMsg'];
@@ -73,6 +82,9 @@ function calculate_target_status($task, $date = null) {
     }
 
     $result = $errorMsg ? 0 : 1;
+    if ($errorMsg) {
+        log_trace("ERROR: $errorMsg", 1);
+    }
     return ['result' => $result, 'ErrorMsg' => $errorMsg];
 }
 
@@ -96,6 +108,9 @@ function calculate_target_status($task, $date = null) {
  * @param string $date
  */
 function insert_new_goal($task, $patientChoice = null, $date = null) {
+    log_trace("INSERT NEW GOAL. Task: $task, Patient choice: $patientChoice, Date: $date");
+    $errorMsg = null;
+
     try {
         $resp = insertNewGoal($task, $patientChoice, $date);
         $errorMsg = $resp['ErrorMsg'];
@@ -106,6 +121,9 @@ function insert_new_goal($task, $patientChoice = null, $date = null) {
     }
 
     $result = $errorMsg ? 0 : 1;
+    if ($errorMsg) {
+        log_trace("ERROR: $errorMsg", 1);
+    }
     return ['result' => $result, 'ErrorMsg' => $errorMsg];
 }
 
@@ -120,6 +138,7 @@ function insert_new_goal($task, $patientChoice = null, $date = null) {
  * @return string
  */
 function insert_steps($admission, $steps = null) {
+    log_trace("INSERT STEPS. Admission: $admission, Steps: $steps");
     $errorMsg = null;
 
     $steps = json_decode($steps, true); // Convert string to an associative array
@@ -134,5 +153,8 @@ function insert_steps($admission, $steps = null) {
     }
 
     $result = $errorMsg ? 0 : 1;
+    if ($errorMsg) {
+        log_trace("ERROR: $errorMsg", 1);
+    }
     return ['result' => $result, 'ErrorMsg' => $errorMsg];
 }

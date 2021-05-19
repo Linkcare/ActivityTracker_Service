@@ -26,6 +26,7 @@ function storeAuthorization($fbRes) {
     }
 
     if (!$authForm) {
+        log_trace("ERROR: AUTHORIZATION FORM NOT FOUND: Cannot update authorization data", 1);
         $lc2Action = new LC2Action(LC2Action::ACTION_ERROR_MSG);
         $lc2Action->setErrorMessage('AUTHORIZATION FORM NOT FOUND: Cannot update authorization data');
         return $lc2Action;
@@ -89,6 +90,8 @@ function updatePatientActivity($taskId, $toDate) {
     $updateActivityTask = $api->task_get($taskId);
     $admissionId = $updateActivityTask->getAdmissionId();
 
+    log_trace("UPDATE PATIENT ACTIVITY. Date: $toDate,  Admission: $admissionId");
+
     // Get Fitbit OAuth credentials
     $filter = new TaskFilter();
     $filter->setObjectType('TASKS');
@@ -110,6 +113,7 @@ function updatePatientActivity($taskId, $toDate) {
     }
 
     if (!$credentialsForm) {
+        log_trace("ERROR! Authorization not found", 1);
         return ['ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
     }
 
@@ -129,7 +133,8 @@ function updatePatientActivity($taskId, $toDate) {
     $fitbitCredentials = new FitbitResource($options);
 
     if (!$fitbitCredentials || !$fitbitCredentials->isValid()) {
-        return ['ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
+        log_trace("ERROR! Fitbit credentials are missing or not valid", 1);
+        return ['ErrorMsg' => 'Fitbit credentials are missing or not valid', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
     }
 
     // Find last reported activity
@@ -154,9 +159,11 @@ function updatePatientActivity($taskId, $toDate) {
     // Request activity data to Fitbit
     $steps = getActivityData($fitbitCredentials, $lastReportedDate, $toDate);
     if ($fitbitCredentials->getErrorCode()) {
+        log_trace("ERROR! Fitbit returned: " . $fitbitCredentials->getErrorDescription(), 1);
         return ['ErrorMsg' => $fitbitCredentials->getErrorDescription()];
     }
     if (empty($steps)) {
+        log_trace("No new activity detected", 1);
         return ['ErrorMsg' => '', 'ErrorCode' => ''];
     }
 
@@ -171,6 +178,7 @@ function updatePatientActivity($taskId, $toDate) {
         if ($value <= 0) {
             continue;
         }
+        log_trace("Steps in $date: $value", 2);
         if ($lastReportedTask && $lastReportedTask->getDate() == $date) {
             updateStepsTask($lastReportedTask, $value, $date);
         } else {
@@ -231,6 +239,8 @@ function insertCustomSteps($admissionId, $steps) {
         return ['ErrorMsg' => '', 'ErrorCode' => ''];
     }
 
+    log_trace("INSERT CUSTOM STEPS. Admission: $admissionId");
+
     $api = LinkcareSoapAPI::getInstance();
 
     $minDate = null;
@@ -275,6 +285,7 @@ function insertCustomSteps($admissionId, $steps) {
         if ($value <= 0) {
             continue;
         }
+        log_trace("Steps in $date: $value", 1);
         if (array_key_exists($date, $existingSteps)) {
             updateStepsTask($existingSteps[$date], $value, $date);
         } else {

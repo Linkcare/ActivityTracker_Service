@@ -87,6 +87,37 @@ function NullableString($value) {
 }
 
 /**
+ * Generate a trace on STDERR
+ *
+ * @param string $log
+ * @param number $tabLevel
+ */
+function log_trace($log, $tabLevel = 0) {
+    if (!$GLOBALS["DEBUG_LOG"]) {
+        return;
+    }
+    $stackTrace = debug_backtrace();
+    $function = $stackTrace[1]['function'];
+    if ($stackTrace[1]['class']) {
+        // If is a member of a class, add the class name
+        $function = $stackTrace[1]['class'] . "::" . $function;
+    }
+
+    $line = $stackTrace[0]['line'];
+    $depth = count($stackTrace) - 2;
+    if ($depth < 0) {
+        $depth = 0;
+    }
+
+    $maxLength = 15;
+
+    $message[] = str_pad($function, $maxLength, " ", STR_PAD_RIGHT);
+    $message[] = str_pad($line, 4, "0", STR_PAD_LEFT);
+    $message[] = str_repeat(" ", 2 * ($tabLevel + $depth)) . $log;
+    error_log('@' . implode(' ', $message));
+}
+
+/**
  * Generate a service log
  *
  * @param string $log_msg

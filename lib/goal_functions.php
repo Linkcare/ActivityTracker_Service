@@ -35,6 +35,8 @@ function calculateTargetStatus($algorithm, $taskId, $calcDate) {
         $calcDate = $task->getDate();
     }
 
+    log_trace("CALCULATE TARGET STATUS. Admission: " . $admission->getId() . ", Patient: " . $admission->getCaseId());
+
     // remove time part
     $calcDate = explode(' ', $calcDate)[0];
 
@@ -68,6 +70,8 @@ function insertNewGoal($taskId, $patientChoice, $calcDate) {
     $task = $api->task_get($taskId);
     $admission = $api->admission_get($task->getAdmissionId());
 
+    log_trace("INSERT NEW GOAL. Admission: " . $admission->getId() . ", Patient: " . $admission->getCaseId());
+
     if (!$calcDate) {
         // Use the TASK date if no other date specified
         $calcDate = $task->getDate();
@@ -90,43 +94,54 @@ function insertNewGoal($taskId, $patientChoice, $calcDate) {
     /* @var APITask $goalTask */
     $agrTask = empty($agrTaskList) ? null : reset($agrTaskList);
     if (!$agrTask) {
+        log_trace("ERROR! TASK " . $GLOBALS['TASK_CODES']['TARGET_STATUS'] . " not found!!", 1);
         return false;
     }
 
     /* @var APIForm $agrForm */
     $agrForm = $agrTask->findForm($GLOBALS['FORM_CODES']['TARGET_STATUS']);
     if (!$agrForm) {
+        log_trace("ERROR! FORM " . $GLOBALS['FORM_CODES']['TARGET_STATUS'] . " not found!!", 1);
         return false;
     }
 
     $maxGoal = getMaxGoal($admission, $calcDate);
+    log_trace("MAX_GOAL: $maxGoal", 1);
 
     $goalKeep = 0;
     $goal5m = 0;
     $goal10m = 0;
     if ($q = $agrForm->findQuestion($GLOBALS['ITEM_CODES']['TARGET_GOAL_BASE'])) {
         $goalKeep = intval($q->getValue());
+        log_trace("GOAL KEEP: $goalKeep", 1);
     }
     if (($q = $agrForm->findQuestion($GLOBALS['ITEM_CODES']['TARGET_GOAL_5M'])) && $q->getValue()) {
         $goal5m = intval($q->getValue());
+        log_trace("GOAL 5M: $goal5m", 1);
     } else {
         $goal5m = $goalKeep;
+        log_trace("GOAL 5M not set. Use GOAL_KEEP: $goal5m", 1);
     }
     if (($q = $agrForm->findQuestion($GLOBALS['ITEM_CODES']['TARGET_GOAL_10M'])) && $q->getValue()) {
         $goal10m = intval($q->getValue());
+        log_trace("GOAL 10M: $goal10m", 1);
     } else {
         $goal10m = $goal5m;
+        log_trace("GOAL 10M not set. Use GOAL_5M: $goal10m", 1);
     }
 
     switch ($patientChoice) {
         case 2 :
             $goalTheor = $goal5m;
+            log_trace("Patient choice: INCREASE 5M = $goalTheor", 1);
             break;
         case 3 :
             $goalTheor = $goal10m;
+            log_trace("Patient choice: INCREASE 10M = $goalTheor", 1);
             break;
         default :
             $goalTheor = $goalKeep;
+            log_trace("Patient choice: KEEP = $goalTheor", 1);
     }
 
     insertNewGoalTask($admission, $goalTheor, $maxGoal);
@@ -143,13 +158,9 @@ function insertNewGoal($taskId, $patientChoice, $calcDate) {
  * @param string $calcDate: base date: calculations will be done on the previous week (mon-sun)
  */
 function STEP_calculate_new_goal($admission, $calcDate = null) {
-    if ($GLOBALS["debugHTML"]) {
-        echo ("GOAL CALCULATION ALGORITHM: STEP<br/>");
-    }
+    log_trace("GOAL CALCULATION ALGORITHM: STEP");
     if (!$admission) {
-        if ($GLOBALS["debugHTML"]) {
-            echo ("  ERROR: Admission not provided<br/>");
-        }
+        log_trace('ERROR: Admission not provided', 1);
         return;
     }
     $admissionId = $admission->getId();
@@ -167,9 +178,7 @@ function STEP_calculate_new_goal($admission, $calcDate = null) {
     $currentGoal = getCurrentGoal($admission, $sunday);
     $maxGoal = 0;
 
-    if ($GLOBALS["debugHTML"]) {
-        echo ("CURRENT GOAL for admission $admissionId on date $sunday = $currentGoal<br/>");
-    }
+    log_trace("CURRENT GOAL for admission $admissionId on date $sunday = $currentGoal", 1);
 
     /* Check if the date for which the GOAL is calculated is inside an "agreement period", where the goal will not be increased */
     $inAgreementPeriod = dateIsInAgreementPeriod($admission, $firstDayInNextPeriod);
@@ -189,41 +198,32 @@ function STEP_calculate_new_goal($admission, $calcDate = null) {
     $goal10m = 0; // Goal increased in 10 minutes
     $theorGoal = $currentGoal; // Used when the patient did not achieve the current goal
 
-    if ($GLOBALS["debugHTML"]) {
-        echo ("calcDate = $calcDate<br/>");
-        echo ("Period analyzed = $monday to $sunday<br/><br/>");
-        echo ("maximum_goal = $maxGoal<br/>");
-        echo ("in_agreement_period = $inAgreementPeriod<br/>");
-        echo ("valid_days = $validDays<br/>");
-        echo ("median6 = $median6<br/>");
-        echo ("days_reached = $daysReached<br/>");
-        echo ("<br/>");
-    }
+    log_trace("calcDate = $calcDate", 1);
+    log_trace("Period analyzed = $monday to $sunday", 1);
+    log_trace("maximum_goal = $maxGoal", 1);
+    log_trace("in_agreement_period = $inAgreementPeriod", 1);
+    log_trace("valid_days = $validDays", 1);
+    log_trace("median6 = $median6", 1);
+    log_trace("days_reached = $daysReached", 1);
 
     $newStatus = null;
     if ($validDays < 4) {
         // Not enough valid days data. Keep current goal
-        if ($GLOBALS["debugHTML"]) {
-            echo ("Not enough valid days data. Keep current goal<br/>");
-        }
+        log_trace("Not enough valid days data. Keep current goal", 1);
         $theorGoal = $currentGoal;
         $newStatus = TARGET_STATUS_NC;
     }
 
     // Goal was not established yet. Calculate a new goal for the next week based on patient activity
     if (!$newStatus && !$currentGoal) {
-        if ($GLOBALS["debugHTML"]) {
-            echo ("Goal was not established yet. Calculate a new goal for the next week based on patient activity<br/>");
-        }
+        log_trace("Goal was not established yet. Calculate a new goal for the next week based on patient activity", 1);
         $theorGoal = $median6;
         $newStatus = TARGET_STATUS_1ST;
     }
 
     // ****** GROUP 1: goal not achieved, and still far
     if (!$newStatus && $daysReached < 2) {
-        if ($GLOBALS["debugHTML"]) {
-            echo ("GROUP 1: goal not achieved, and still far<br/>");
-        }
+        log_trace("GROUP 1: goal not achieved, and still far", 1);
         $theorGoal = min(($currentGoal > 200 ? $currentGoal - 200 : 1), $median6 + 500);
         $newStatus = TARGET_STATUS_KO1;
     }
@@ -231,17 +231,13 @@ function STEP_calculate_new_goal($admission, $calcDate = null) {
     // ****** GROUP 2: goal not achieved, but almost there
     if (!$newStatus && $daysReached < 4 && $median6 < $currentGoal) {
         $lastWeekStatus = getTargetStatus($admission, $sunday); // Check status of the previous week
-        if ($GLOBALS["debugHTML"]) {
-            echo ("last_week_status: $lastWeekStatus ====> ");
-        }
+        log_trace("GROUP2. Last_week_status: $lastWeekStatus", 1);
         if ($lastWeekStatus == TARGET_STATUS_KO2) {
-            if ($GLOBALS["debugHTML"])
-                echo ("GROUP 2: goal not achieved, but almost there - KO Again<br/>");
+            log_trace("goal not achieved, but almost there - KO Again", 2);
             $theorGoal = min(($currentGoal > 200 ? $currentGoal - 200 : 1), $median6 + 500);
             $newStatus = TARGET_STATUS_KO2BIS;
         } else {
-            if ($GLOBALS["debugHTML"])
-                echo ("GROUP 2: goal not achieved, but almost there - KO first time<br/>");
+            log_trace("goal not achieved, but almost there - KO first time", 2);
             $theorGoal = $currentGoal;
             $newStatus = TARGET_STATUS_KO2;
         }
@@ -250,29 +246,22 @@ function STEP_calculate_new_goal($admission, $calcDate = null) {
     // ****** GROUP 3: goal achieved. Increase goal
     if (!$newStatus) {
         // Calculate options for increasing activity in 5 and 10 minutes
+        log_trace("GROUP 3. Goal achieved", 1);
         if ($daysReached < 4) {
             $goal5m = min($median6 + 500, $currentGoal + 500);
-            if ($GLOBALS["debugHTML"]) {
-                echo ("GROUP 3 (comes from GROUP 2: reached=$daysReached): goal achieved. Calculate 5M increase: $goal5m<br/>");
-            }
+            log_trace("(comes from GROUP 2: reached=$daysReached). 5M increase = min(median6 + 500, currentGoal + 500): $goal5m", 2);
         } else {
             if ($median6 + 500 < $currentGoal + 1000) {
                 $goal5m = min($median6 + 500, $currentGoal + 500);
-                if ($GLOBALS["debugHTML"]) {
-                    echo ("GROUP 3: goal achieved (low increase). Calculate 5M increase: $goal5m<br/>");
-                }
+                log_trace("(low increase). 5M increase = min(median6 + 500, currentGoal + 500): $goal5m", 2);
             } else {
                 $goal5m = $currentGoal + 500;
-                if ($GLOBALS["debugHTML"]) {
-                    echo ("GROUP 3: goal achieved (high increase). Calculate 5M increase: $goal5m<br/>");
-                }
+                log_trace("(high increase). 5M increase = currentGoal + 500: $goal5m", 2);
             }
         }
 
         $goal10m = $currentGoal + 1000;
-        if ($GLOBALS["debugHTML"]) {
-            echo ("GROUP 3: goal achieved.. Calculate 10M increase: $goal10m<br/>");
-        }
+        log_trace("10M increase = currentGoal + 1000: $goal10m", 2);
 
         $newStatus = TARGET_STATUS_OK1;
     }
@@ -292,11 +281,9 @@ function STEP_calculate_new_goal($admission, $calcDate = null) {
             'AVG4' => $stepStats['average'], 'VALID_DAYS' => $validDays, 'REACHED' => $daysReached, 'WEEK_STEPS' => $weekSteps,
             'AGREEMENT' => $inAgreementPeriod];
 
-    if ($GLOBALS["debugHTML"]) {
-        echo ("Calculate new GOAL for date: $calcDate<br/>");
-        echo str_replace('[', '<br/>[', print_r($return, true));
-        echo ("<br/><br/>");
-    }
+    log_trace("GOAL SUMMARY for date: $calcDate:", 1);
+    log_trace(str_replace('[', '[', print_r($return, true)), 2);
+    log_trace('');
 
     return $return;
 }
@@ -311,13 +298,9 @@ function STEP_calculate_new_goal($admission, $calcDate = null) {
  * @param string $calcDate: base date: calculations will be done on the previous week (mon-sun)
  */
 function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) {
-    if ($GLOBALS["debugHTML"]) {
-        echo ("GOAL CALCULATION ALGORITHM: NORTHUMBRIA<br/>");
-    }
+    log_trace("GOAL CALCULATION ALGORITHM: NORTHUMBRIA");
     if (!$admission) {
-        if ($GLOBALS["debugHTML"]) {
-            echo ("  ERROR: Admission not provided<br/>");
-        }
+        log_trace("  ERROR: Admission not provided", 1);
         return;
     }
 
@@ -334,9 +317,7 @@ function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) 
     $currentGoal = getCurrentGoal($admission, $sunday);
     $theorGoal = $currentGoal;
 
-    if ($GLOBALS["debugHTML"]) {
-        echo ("CURRENT GOAL for admission $admission on date $sunday = $currentGoal<br/>");
-    }
+    log_trace("CURRENT GOAL for admission $admission on date $sunday = $currentGoal", 1);
 
     /* Check if the date for which the GOAL is calculated is inside an "agreement period", where the goal will not be increased */
     $inAgreementPeriod = dateIsInAgreementPeriod($admission, $firstDayInNextPeriod);
@@ -365,40 +346,31 @@ function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) 
     $mean4 = array_average(array_slice($sortedSteps, 0, 4));
     $median = array_median($sortedSteps);
 
-    if ($GLOBALS["debugHTML"]) {
-        echo ("calcDate = $calcDate<br/>");
-        echo ("Period analyzed = $monday to $sunday<br/><br/>");
-        echo ("in_agreement_period = $inAgreementPeriod<br/>");
-        echo ("valid_days = " . count($validDays) . "<br/>");
-        echo ("mean4 = $mean4<br/>");
-        echo ("median = $median<br/>");
-        echo ("days_reached = $daysReached<br/>");
-        echo ("<br/>");
-    }
+    log_trace("calcDate = $calcDate", 1);
+    log_trace("Period analyzed = $monday to $sunday", 1);
+    log_trace("in_agreement_period = $inAgreementPeriod", 1);
+    log_trace("valid_days = " . count($validDays), 1);
+    log_trace("mean4 = $mean4", 1);
+    log_trace("median = $median", 1);
+    log_trace("days_reached = $daysReached", 1);
 
     $newStatus = null;
     if (count($validDays) < 4) {
         // Not enough valid days data. Keep current goal
-        if ($GLOBALS["debugHTML"]) {
-            echo ("Not enough valid days data. Keep current goal<br/>");
-        }
+        log_trace("Not enough valid days data. Keep current goal", 1);
         $theorGoal = $currentGoal;
         $newStatus = TARGET_STATUS_NC;
     }
 
     // Goal was not established yet. Calculate a new goal for the next week based on patient activity
     if (!$newStatus && !$currentGoal) {
-        if ($GLOBALS["debugHTML"]) {
-            echo ("Goal was not established yet. Calculate a new goal for the next week based on patient activity<br/>");
-        }
+        log_trace("Goal was not established yet. Calculate a new goal for the next week based on patient activity", 1);
         $theorGoal = $median + 500;
         $newStatus = TARGET_STATUS_1ST;
     }
 
     if (!$newStatus && $daysReached < 4) {
-        if ($GLOBALS["debugHTML"]) {
-            echo ("GROUP 1: Goal not achieved. Increase 500 steps based on the median of previous week (or the previous GOAL if lower)<br/>");
-        }
+        log_trace("GROUP 1: Goal not achieved. Increase 500 steps based on the median of previous week (or the previous GOAL if lower)", 1);
         $theorGoal = min($currentGoal, $median + 500);
         $newStatus = TARGET_STATUS_KO1;
     }
@@ -407,9 +379,7 @@ function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) 
     if (!newStatus) {
         // In NORTHUMBRIA the only option is to increase 5M
         $goal5m = $currentGoal + 500;
-        if ($GLOBALS["debugHTML"]) {
-            echo ("GROUP 2: goal achieved. Calculate 5M increase: $goal5m<br/>");
-        }
+        log_trace("GROUP 2: goal achieved. Calculate 5M increase: $goal5m", 1);
 
         $newStatus = TARGET_STATUS_OK1;
     }
@@ -421,11 +391,9 @@ function NORTHUMBRIA_calculate_new_goal($admission, $calcDate, $patient_choice) 
     $return = ['STATUS' => $newStatus, 'GOAL_BASE' => $theorGoal, 'GOAL_5M' => $goal5m, 'MEDIAN6' => $median, 'AVG4' => $mean4,
             'VALID_DAYS' => count($validDays), 'REACHED' => $daysReached, 'WEEK_STEPS' => $weekSteps, 'AGREEMENT' => $inAgreementPeriod];
 
-    if ($GLOBALS["debugHTML"]) {
-        echo ("Calculate new GOAL for date: $calcDate<br/>");
-        echo str_replace('[', '<br/>[', print_r($return, true));
-        echo ("<br/><br/>");
-    }
+    log_trace("GOAL SUMMARY for date: $calcDate", 1);
+    log_trace(str_replace('[', '[', print_r($return, true)), 2);
+    log_trace('');
 
     return $return;
 }
@@ -590,7 +558,7 @@ function dateIsInAgreementPeriod($admission, $date) {
  * @param string $fromDate
  * @param string $toDate
  * @param int $goal
- * @return number[]|NULL[]|unknown[]|unknown[][]
+ * @return Array
  */
 function getSteps($admission, $fromDate, $toDate, $goal = null) {
     $filter = new TaskFilter();

@@ -12,6 +12,7 @@ require_once "fitbit_functions.php";
 
 $GLOBALS["LANG"] = "EN";
 $GLOBALS["DEFAULT_TIMEZONE"] = "Europe/Madrid";
+$GLOBALS["DEBUG_LOG"] = false; // Set to true to activate logs (on STDERR)
 
 // Url of the WS-API and LC2
 $GLOBALS["WS_LINK"] = "https://dev-api.linkcareapp.com/ServerWSDL.php";
