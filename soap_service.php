@@ -158,3 +158,38 @@ function insert_steps($admission, $steps = null) {
     }
     return ['result' => $result, 'ErrorMsg' => $errorMsg];
 }
+
+/**
+ * Calculates the achievements of a patient based on the distance walked.
+ * The calculation uses a pre-configured array of increasing distances that represents the possible achievements.<br>
+ * The distance walked determines which item of the array has been reached.<br>
+ * The parameter $mode defines what happens when the patient goes beyond the last item of the array. There are 3 options:
+ * <ul>
+ * <li>STAY: After reaching the last achievement, the element reported will always be the last item of the array</li>
+ * <li>RESTART: (cyclic) After reaching the last achievement, the next city will be the first item of the array.</li>
+ * <li>RETURN: (two way) After reaching the last achievement, the next achivements will traverse the array reversely</li>
+ * </ul>
+ *
+ * @param string $task Reference to the TASK where the achievements will be stored
+ * @param number $distance Total distance covered by the patient
+ * @param string $mode Calculation mode
+ */
+function calculate_achievement($task, $distance, $mode = 'STAY') {
+    log_trace("CALCULATE ACHIEVEMENT. Task: $task, Distance: $distance, Mode: $mode");
+    $errorMsg = null;
+
+    try {
+        $resp = calculateAchievement($task, $distance, $mode);
+        $errorMsg = $resp['ErrorMsg'];
+    } catch (APIException $e) {
+        $errorMsg = $e->getMessage();
+    } catch (Exception $e) {
+        $errorMsg = $e->getMessage();
+    }
+
+    $result = $errorMsg ? 0 : 1;
+    if ($errorMsg) {
+        log_trace("ERROR: $errorMsg", 1);
+    }
+    return ['result' => $result, 'ErrorMsg' => $errorMsg];
+}

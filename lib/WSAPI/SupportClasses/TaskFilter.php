@@ -403,7 +403,7 @@ class TaskFilter {
             $obj->external = $this->external;
         }
         if (!isNullOrEmpty($this->objectTypes)) {
-            $obj->object_types = $this->object_types;
+            $obj->object_types = implode(',', $this->objectTypes);
         }
 
         return json_encode($obj);

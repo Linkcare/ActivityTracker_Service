@@ -50,6 +50,8 @@ class APIQuestion {
     private $type;
     private $value;
     private $valueDescription;
+    /** @var APIQuestionOption[] */
+    private $options;
 
     /**
      *
@@ -77,6 +79,12 @@ class APIQuestion {
         $question->type = NullableString($xmlNode->type);
         $question->value = NullableString($xmlNode->value);
         $question->valueDescription = NullableString($xmlNode->value_description);
+        if ($xmlNode->options) {
+            $question->options = [];
+            foreach ($xmlNode->options->option as $opt) {
+                $question->options[] = APIQuestionOption::parseXML($opt);
+            }
+        }
         return $question;
     }
 
@@ -228,6 +236,14 @@ class APIQuestion {
      */
     public function getValueDescription() {
         return $this->valueDescription;
+    }
+
+    /**
+     *
+     * @return APIQuestionOption[]
+     */
+    public function getOptions() {
+        return $this->options ?? [];
     }
 
     /*

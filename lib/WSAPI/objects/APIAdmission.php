@@ -22,7 +22,10 @@ class APIAdmission {
     private $status;
     private $dateToDisplay;
     private $ageToDisplay;
+    /** @var APISubscription */
     private $subscription;
+    /** @var APIAdmissionPerformance */
+    private $performance;
     private $isNewAdmission = false;
     /** @var LinkcareSoapAPI $api */
     private $api;
@@ -62,6 +65,11 @@ class APIAdmission {
             $admission->ageToDisplay = NullableInt($xmlNode->data->age_to_display);
             if ($xmlNode->data->subscription) {
                 $admission->subscription = APISubscription::parseXML($xmlNode->data->subscription);
+            }
+            if ($xmlNode->performance) {
+                $admission->performance = APIAdmissionPerformance::parseXML($xmlNode->performance);
+            } else {
+                $admission->performance = new APIAdmissionPerformance();
             }
         }
         return $admission;
@@ -187,6 +195,14 @@ class APIAdmission {
      */
     public function getSubscription() {
         return $this->subscription;
+    }
+
+    /**
+     *
+     * @return APIAdmissionPerformance
+     */
+    public function getPerformance() {
+        return $this->performance;
     }
 
     /*

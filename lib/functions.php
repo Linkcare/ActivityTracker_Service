@@ -79,7 +79,7 @@ function storeAuthorization($fbRes) {
  *
  * @param string $taskId
  * @param string $toDate
- * @return string
+ * @return string[]
  */
 function updatePatientActivity($taskId, $toDate) {
     if (!$toDate) {

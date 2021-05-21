@@ -94,15 +94,17 @@ function insertNewGoal($taskId, $patientChoice, $calcDate) {
     /* @var APITask $goalTask */
     $agrTask = empty($agrTaskList) ? null : reset($agrTaskList);
     if (!$agrTask) {
-        log_trace("ERROR! TASK " . $GLOBALS['TASK_CODES']['TARGET_STATUS'] . " not found!!", 1);
-        return false;
+        $errorMsg = "TASK NOT FOUND: " . $GLOBALS['TASK_CODES']['TARGET_STATUS'];
+        log_trace("ERROR! " . $errorMsg, 1);
+        throw new APIException("FORM.NOT_FOUND", $errorMsg);
     }
 
     /* @var APIForm $agrForm */
     $agrForm = $agrTask->findForm($GLOBALS['FORM_CODES']['TARGET_STATUS']);
     if (!$agrForm) {
-        log_trace("ERROR! FORM " . $GLOBALS['FORM_CODES']['TARGET_STATUS'] . " not found!!", 1);
-        return false;
+        $errorMsg = "FORM NOT FOUND: " . $GLOBALS['FORM_CODES']['TARGET_STATUS'];
+        log_trace("ERROR! " . $errorMsg, 1);
+        throw new APIException("FORM.NOT_FOUND", $errorMsg);
     }
 
     $maxGoal = getMaxGoal($admission, $calcDate);
@@ -753,4 +755,143 @@ function insertNewGoalTask($admission, $theorGoal, $maxGoal) {
     }
 
     return $taskId;
+}
+
+/**
+ * Calculates the achievements of a patient based on the distance walked.
+ * The calculation uses a pre-configured array of increasing distances that represents the possible achievements.<br>
+ * The distance walked determines which item of the array has been reached.<br>
+ * The parameter $mode defines what happens when the patient goes beyond the last item of the array. There are 3 options:
+ * <ul>
+ * <li>STAY: After reaching the last achievement, the element reported will always be the last item of the array</li>
+ * <li>RESTART: (cyclic) After reaching the last achievement, the next city will be the first item of the array.</li>
+ * <li>RETURN: (two way) After reaching the last achievement, the next achivements will traverse the array reversely</li>
+ * </ul>
+ *
+ * @param string $taskId Reference to the TASK where the achievements will be stored
+ * @param number $distance Total distance covered by the patient
+ * @param string $mode Calculation mode
+ */
+const ACH_MODE_STAY = 'STAY';
+const ACH_MODE_RESTART = 'RESTART';
+const ACH_MODE_RETURN = 'RETURN';
+
+function calculateAchievement($taskId, $distance, $mode = 'STAY') {
+    $api = LinkcareSoapAPI::getInstance();
+    $task = $api->task_get($taskId);
+    $admission = $api->admission_get($task->getAdmissionId());
+
+    log_trace("Calculating achievement. Task: " . $task->getId() . ", Date:" . $task->getDate() . ", Patient: " . $admission->getCaseId());
+
+    $cityForm = $task->findForm($GLOBALS['FORM_CODES']['CITY_INFO']);
+    if (!$cityForm) {
+        $errorMsg = "FORM NOT FOUND: " . $GLOBALS['FORM_CODES']['CITY_INFO'];
+        log_trace("ERROR! " . $errorMsg, 1);
+        throw new APIException("FORM.NOT_FOUND", $errorMsg);
+    }
+
+    $qCityReach = $cityForm->findQuestion($GLOBALS['ITEM_CODES']['CITY_REACH']);
+    if (!$qCityReach) {
+        $errorMsg = "QUESTION NOT FOUND: " . ['ITEM_CODES']['CITY_REACH'];
+        log_trace("ERROR! " . $errorMsg, 1);
+        throw new APIException("ITEM.NOT_FOUND", $errorMsg);
+    }
+
+    // Calculate the array of distances from the options of the question
+    $forward = [];
+    $mapOtionIds = [];
+    foreach ($qCityReach->getOptions() as $opt) {
+        $mapOtionIds[] = $opt->getId(); // The IDs of the options may not match the position in the array
+        $forward[] = $opt->getValue();
+    }
+    if (empty($forward)) {
+        $forward = [10000000];
+    }
+
+    $maximumDistance = end($forward);
+    $achievement = 0;
+    $nextAchievement = 1;
+    $leftToNext = 0;
+
+    if ($distance <= $maximumDistance) {
+        $achievement = getPositionInArray($distance, $forward);
+        $leftToNext = $forward[$achievement + 1] - $distance;
+        $nextAchievement = $achievement + 1;
+    } else {
+        // The patient has passed the last city
+        $cycles = floor($distance / $maximumDistance);
+        $x = $distance % $maximumDistance;
+        switch ($mode) {
+            case ACH_MODE_RESTART :
+                $achievement = getPositionInArray($x, $forward);
+                $nextAchievement = $achievement + 1;
+                $leftToNext = $forward[$nextAchievement] - $x;
+                break;
+            case ACH_MODE_RETURN :
+                // If $cycles is even, then the patient is going ahead. Otherwise the patient is returning
+                if ($cycles % 2 == 0) {
+                    $achievement = getPositionInArray($x, $forward);
+                    $nextAchievement = $achievement + 1;
+                    $leftToNext = $forward[$nextAchievement] - $x;
+                } else {
+                    // Calculate the reverse array
+                    $reverse = [0];
+                    $r = 0;
+                    foreach (array_reverse($forward) as $d) {
+                        if ($d == $maximumDistance) {
+                            $prev = $d;
+                            continue;
+                        }
+                        $r += ($prev - $d);
+                        $reverse[] = $r;
+                        $prev = $d;
+                    }
+                    $reverse[] = $maximumDistance;
+                    $backAchievement = getPositionInArray($x, $reverse);
+                    $achievement = count($forward) - $backAchievement - 1;
+                    $leftToNext = $reverse[$backAchievement + 1] - $x;
+                    $nextAchievement = $achievement - 1;
+                }
+                break;
+            default :
+            case ACH_MODE_STAY :
+                $achievement = count($forward);
+                $leftToNext = 0;
+                $nextAchievement = null;
+                break;
+        }
+    }
+
+    $arrQuestions = [];
+    $qCityReach->setValue($achievement < 0 ? null : $mapOtionIds[$achievement]);
+    $arrQuestions[] = $qCityReach;
+
+    if ($q = $cityForm->findQuestion($GLOBALS['ITEM_CODES']['NEXT_CITY'])) {
+        $q->setValue($mapOtionIds[$nextAchievement]);
+        $arrQuestions[] = $q;
+    }
+    if ($q = $cityForm->findQuestion($GLOBALS['ITEM_CODES']['NEXT_DISTANCE'])) {
+        $q->setValue($leftToNext);
+        $arrQuestions[] = $q;
+    }
+    $api->form_set_all_answers($cityForm->getId(), $arrQuestions, false);
+
+    return ['ErrorMsg' => '', 'ErrorCode' => ''];
+}
+
+/**
+ *
+ * @param number $value
+ * @param number[] $array
+ * @return number
+ */
+function getPositionInArray($value, $array) {
+    $position = -1;
+    foreach ($array as $pos => $x) {
+        if ($value < $x) {
+            break;
+        }
+        $position = $pos;
+    }
+    return $position;
 }

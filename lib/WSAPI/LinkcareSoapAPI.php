@@ -29,7 +29,7 @@ class LinkcareSoapAPI {
      * @param string $endpoint
      * @throws APIException
      */
-    public function setEndpoint($endpoint) {
+    static public function setEndpoint($endpoint) {
         $wsdl = null; // $url . "/LINKCARE.wsdl.php";
         $client = null;
 
@@ -406,6 +406,24 @@ class LinkcareSoapAPI {
     /**
      *
      * @param string $caseId
+     * @return APIContact
+     */
+    public function case_get($caseId, $admissionId = null) {
+        $case = null;
+        $params = ["case" => $caseId, 'admission' => $admissionId];
+        $resp = $this->invoke('case_get', $params);
+        if (!$resp->getErrorCode()) {
+            if ($found = simplexml_load_string($resp->getResult())) {
+                $case = APICase::parseXML($found);
+            }
+        }
+
+        return $case;
+    }
+
+    /**
+     *
+     * @param string $caseId
      * @param string $subscriptionId
      * @param string $admissionId
      * @return APIContact
@@ -472,6 +490,7 @@ class LinkcareSoapAPI {
      * @param int $caseId
      * @param boolean $get
      * @param int $subscriptionId
+     * @param string $search
      * @return APIAdmission[]
      */
     public function case_admission_list($caseId, $get = false, $subscriptionId = null, $search) {

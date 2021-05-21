@@ -147,7 +147,7 @@ class APIForm {
      */
     public function findQuestion($questionId) {
         if ($this->questions === null) {
-            $f = $this->api->form_get_summary($this->id);
+            $f = $this->api->form_get_summary($this->id, true);
             $this->questions = $f->getQuestions();
         }
         foreach ($this->questions as $q) {

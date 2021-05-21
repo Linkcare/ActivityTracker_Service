@@ -9,6 +9,7 @@ class APICase {
     private $nickname;
     private $bdate;
     private $gender;
+    private $timezone;
     /* @var APIIdentifier[] $identifiers */
     private $identifiers = [];
 
@@ -22,15 +23,16 @@ class APICase {
             return null;
         }
         $case = new APICase();
-        $case->id = (string) $xmlNode->ref;
-        $case->userName = (string) $xmlNode->username;
+        $case->id = trim($xmlNode->ref);
+        $case->userName = trim($xmlNode->username);
         if ($xmlNode->data) {
-            $case->fullName = (string) $xmlNode->data->full_name;
-            $case->name = (string) $xmlNode->data->name;
-            $case->surname = (string) $xmlNode->data->surname;
-            $case->nickname = (string) $xmlNode->data->nickname;
-            $case->bdate = (string) $xmlNode->data->bdate;
-            $case->gender = (string) $xmlNode->data->gender;
+            $case->fullName = trim($xmlNode->data->full_name);
+            $case->name = trim($xmlNode->data->name);
+            $case->surname = trim($xmlNode->data->surname);
+            $case->nickname = trim($xmlNode->data->nickname);
+            $case->bdate = trim($xmlNode->data->bdate);
+            $case->gender = trim($xmlNode->data->gender);
+            $case->timezone = trim($xmlNode->data->timezone);
         }
         $identifiers = [];
         if ($xmlNode->identifiers) {
@@ -109,6 +111,14 @@ class APICase {
      */
     public function getGender() {
         return $this->gender;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getTimezone() {
+        return $this->timezone;
     }
 
     /**
