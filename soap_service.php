@@ -18,6 +18,7 @@ try {
     $server->addFunction("calculate_target_status");
     $server->addFunction("insert_new_goal");
     $server->addFunction("insert_steps");
+    $server->addFunction("calculate_achievement");
     $server->handle();
 } catch (APIException $e) {
     log_trace('UNEXPECTED API ERROR executing SOAP function: ' . $e->getMessage());
