@@ -110,6 +110,7 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
  * Available breakdown periods:
  * <ul>
  * <li>15min</li>
+ * <li>5min</li>
  * <li>1min (default value)</li>
  * </ul>
  *
