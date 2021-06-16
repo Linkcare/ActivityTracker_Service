@@ -96,10 +96,11 @@ function updatePatientActivity($taskId, $toDate) {
     $filter = new TaskFilter();
     $filter->setObjectType('TASKS');
     $filter->setStatusIds('CLOSED');
-    $admissionTasks = $api->admission_get_task_list($admissionId, 100, 0, $filter, true);
+    $filter->setTaskCodes($GLOBALS['TASK_CODES']['AUTH']);
+    $authTasks = $api->admission_get_task_list($admissionId, 100, 0, $filter, true);
     /* @var APIForm $credentialsForm */
     $credentialsForm = null;
-    foreach ($admissionTasks as $t) {
+    foreach ($authTasks as $t) {
         if ($t->getTaskCode() != $GLOBALS['TASK_CODES']['AUTH']) {
             continue;
         }
@@ -140,10 +141,15 @@ function updatePatientActivity($taskId, $toDate) {
     // Find last reported activity
     $lastReportedDate = null;
     $lastReportedTask = null;
-    foreach ($admissionTasks as $t) {
-        if ($t->getTaskCode() != $GLOBALS['TASK_CODES']['STEPS']) {
-            continue;
-        }
+    $filter = new TaskFilter();
+    $filter->setObjectType('TASKS');
+    $filter->setStatusIds('CLOSED');
+    $filter->setTaskCodes($GLOBALS['TASK_CODES']['STEPS']);
+    $stepTasks = $api->admission_get_task_list($admissionId, 1, 0, $filter, false);
+
+    if (!empty($stepTasks)) {
+        /* @var APITask $t */
+        $t = reset($stepTasks);
         $lastReportedDate = $t->getDate();
         $lastReportedTask = $t;
     }
