@@ -92,18 +92,17 @@ function updatePatientActivity($taskId, $toDate) {
 
     log_trace("UPDATE PATIENT ACTIVITY. Date: $toDate,  Admission: $admissionId");
 
-    // Get Fitbit OAuth credentials
+    // Get Fitbit OAuth credentials from the most recent autentication TASK
     $filter = new TaskFilter();
     $filter->setObjectType('TASKS');
     $filter->setStatusIds('CLOSED');
-    $filter->setTaskCodes($GLOBALS['TASK_CODES']['AUTH']);
-    $authTasks = $api->admission_get_task_list($admissionId, 100, 0, $filter, true);
+    $filter->setTaskCodes([$GLOBALS['TASK_CODES']['AUTH'], $GLOBALS['TASK_CODES']['RENEW_AUTH']]);
+    $authTasks = $api->admission_get_task_list($admissionId, 100, 0, $filter, false);
     /* @var APIForm $credentialsForm */
     $credentialsForm = null;
-    foreach ($authTasks as $t) {
-        if ($t->getTaskCode() != $GLOBALS['TASK_CODES']['AUTH']) {
-            continue;
-        }
+    if (!empty($authTasks)) {
+        /* @var APITask $t */
+        $t = reset($authTasks);
         $forms = $api->task_activity_list($t->getId());
         foreach ($forms as $f) {
             if ($f->getFormCode() == $GLOBALS['FORM_CODES']['AUTH']) {
