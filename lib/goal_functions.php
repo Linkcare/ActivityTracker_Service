@@ -874,7 +874,7 @@ function calculateAchievement($taskId, $distance, $mode = 'STAY') {
         $q->setValue($leftToNext);
         $arrQuestions[] = $q;
     }
-    $api->form_set_all_answers($cityForm->getId(), $arrQuestions, false);
+    $api->form_set_all_answers($cityForm->getId(), $arrQuestions, true);
 
     return ['ErrorMsg' => '', 'ErrorCode' => ''];
 }
