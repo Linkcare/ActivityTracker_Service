@@ -32,7 +32,7 @@ class TaskFilter {
     /** @var boolean **/
     private $external;
     /** @var string **/
-    private $objectTypes;
+    private $objectTypes = [];
 
     /*
      * **********************************
@@ -345,7 +345,11 @@ class TaskFilter {
      * @param string $value
      */
     public function setObjectType($value) {
-        $this->objectTypes = $value;
+        if ((is_array($value) && empty($value)) || (!is_array($value) && isNullOrEmpty($value))) {
+            $this->objectTypes = [];
+        } else {
+            $this->objectTypes = is_array($value) ? $value : [$value];
+        }
     }
 
     /*
@@ -402,7 +406,7 @@ class TaskFilter {
         if (!isNullOrEmpty($this->external)) {
             $obj->external = $this->external;
         }
-        if (!isNullOrEmpty($this->objectTypes)) {
+        if (!empty($this->objectTypes)) {
             $obj->object_types = implode(',', $this->objectTypes);
         }
 

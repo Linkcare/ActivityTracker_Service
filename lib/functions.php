@@ -184,10 +184,11 @@ function updatePatientActivity($taskId, $toDate) {
             continue;
         }
         log_trace("Steps in $date: $value", 2);
+        $partialSteps = getDetailedActivity($fitbitCredentials, $date, '15min');
         if ($lastReportedTask && $lastReportedTask->getDate() == $date) {
-            updateStepsTask($lastReportedTask, $value, $date);
+            updateStepsTask($lastReportedTask, $value, $date, $partialSteps);
         } else {
-            createStepsTask($admissionId, $value, $date);
+            createStepsTask($admissionId, $value, $date, $partialSteps);
         }
     }
 
@@ -376,7 +377,7 @@ function apiConnect($token, $user = null, $password = null, $role = null, $team 
  * @throws APIException
  * @return string
  */
-function createStepsTask($admissionId, $stepsNumber, $date) {
+function createStepsTask($admissionId, $stepsNumber, $date, $partialSteps = null) {
     $api = LinkcareSoapAPI::getInstance();
     $taskId = $api->task_insert_by_task_code($admissionId, $GLOBALS["TASK_CODES"]["STEPS"], $date);
     if (!$taskId) {
@@ -385,20 +386,28 @@ function createStepsTask($admissionId, $stepsNumber, $date) {
     }
 
     $task = $api->task_get($taskId);
-    updateStepsTask($task, $stepsNumber, $date);
+    updateStepsTask($task, $stepsNumber, $date, $partialSteps);
 
     return $taskId;
 }
 
 /**
- * Updates the number of steps in the TASK provided
+ * Updates the number of steps in the TASK provided.
+ * The parameter $partialSteps can be used to store also a breakdown of the steps in different intervals of the day. It must be an array where each
+ * item is an associative array with 2 values:
+ * <ul>
+ * <li>'[{ "time": "00:00:00", "value": 0 },</li>
+ * <li>'{ "time": "00:01:00", "value": 287 },</li>
+ * <li>'{ "time": "00:02:00", "value": 287 }]</li>
+ * </ul>
  *
  * @param APITask $task
  * @param int $stepsNumber
  * @param string $date
+ * @param array $partialSteps
  * @throws APIException
  */
-function updateStepsTask($task, $stepsNumber, $date) {
+function updateStepsTask($task, $stepsNumber, $date, $partialSteps = null) {
     if (!$task) {
         return;
     }
@@ -415,11 +424,40 @@ function updateStepsTask($task, $stepsNumber, $date) {
     }
 
     if ($stepsForm) {
-        if ($question = $stepsForm->findQuestion('STEPS')) {
+        if ($question = $stepsForm->findQuestion($GLOBALS['ITEM_CODES']['STEPS'])) {
             $question->setValue($stepsNumber);
-            $api->form_set_answer($stepsForm->getId(), $question->getId(), $stepsNumber);
-            $task->setDate($date);
-            $api->task_set($task);
+            $arrQuestions[] = $question;
         }
+        /* If we have partial steps, then we must fill the array of questions with the details */
+        if (!empty($partialSteps) && ($arrayHeader = $stepsForm->findQuestion($GLOBALS['ITEM_CODES']['PARTIAL_STEPS_TIME'])) &&
+                $arrayHeader->getArrayRef()) {
+
+            $row = 1;
+            foreach ($partialSteps as $partialInfo) {
+                $partialValue = $partialInfo['value'];
+                $partialTime = $partialInfo['time'];
+
+                if (!$partialValue) {
+                    continue;
+                }
+                if ($question = $stepsForm->findArrayQuestion($arrayHeader->getArrayRef(), $row, $GLOBALS['ITEM_CODES']['PARTIAL_STEPS_TIME'])) {
+                    $question->setValue($partialTime);
+                    $arrQuestions[] = $question;
+                }
+                if ($question = $stepsForm->findArrayQuestion($arrayHeader->getArrayRef(), $row, $GLOBALS['ITEM_CODES']['PARTIAL_STEPS'])) {
+                    $question->setValue($partialValue);
+                    $arrQuestions[] = $question;
+                }
+
+                $row++;
+            }
+        }
+
+        if (!empty($arrQuestions)) {
+            $api->form_set_all_answers($stepsForm->getId(), $arrQuestions, false);
+        }
+        // $api->form_set_answer($stepsForm->getId(), $question->getId(), $stepsNumber);
+        $task->setDate($date);
+        $api->task_set($task);
     }
 }

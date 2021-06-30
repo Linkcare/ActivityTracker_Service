@@ -35,7 +35,6 @@ class APIQuestion {
     private $id;
     private $itemCode;
     private $questionTemplateId;
-    private $code;
     private $name;
     private $unit;
     private $order;
@@ -88,6 +87,22 @@ class APIQuestion {
         return $question;
     }
 
+    /**
+     * Creates a clone of the question.
+     * The cloned question will have a NULL ID and value
+     */
+    public function __clone() {
+        $this->id = null;
+        $this->value = null;
+        $this->valueDescription = null;
+        if (!empty($this->options)) {
+            $this->options = array_map(function ($o) {
+                /* @var APIQuestionOption $o */
+                return (clone $o);
+            }, $this->options);
+        }
+    }
+
     /*
      * **********************************
      * GETTERS
@@ -122,14 +137,6 @@ class APIQuestion {
      *
      * @return string
      */
-    public function getCode() {
-        return $this->code;
-    }
-
-    /**
-     *
-     * @return string
-     */
     public function getName() {
         return $this->name;
     }
@@ -148,6 +155,19 @@ class APIQuestion {
      */
     public function getOrder() {
         return $this->order;
+    }
+
+    /**
+     * If the Question belongs to an array, this function returns the reference of the array.
+     * Otherwise returns null
+     *
+     * @return int
+     */
+    public function getArrayRef() {
+        if ($this->getRow()) {
+            return $this->order;
+        }
+        return null;
     }
 
     /**
@@ -253,12 +273,39 @@ class APIQuestion {
      */
 
     /**
+     * Sets the ITEM CODE of the question
+     *
+     * @param string $value
+     */
+    public function setItemCode($value) {
+        $this->itemCode = $value;
+    }
+
+    /**
+     * Sets the Reference of the array to which this question belongs
+     *
+     * @param string $value
+     */
+    public function setArrayRef($value) {
+        $this->order = $value;
+    }
+
+    /**
      * Sets the value of the question
      *
      * @param string $value
      */
     public function setValue($value) {
         $this->value = $value;
+    }
+
+    /**
+     * Sets the row of the question (Used in questions that belong to an array)
+     *
+     * @param string $value
+     */
+    public function setRow($value) {
+        $this->row = $value;
     }
 
     /*
@@ -277,7 +324,15 @@ class APIQuestion {
             $parentNode = $xml->rootNode;
         }
 
-        $xml->createChildNode($parentNode, "question_id", $this->getId());
+        if ($this->getRow()) {
+            // Is a question in an array
+            $id = $this->getItemCode() ? $this->getItemCode() : $this->getQuestionTemplateId();
+
+            $xml->createChildNode($parentNode, "question_id", $id);
+            $xml->createChildNode($parentNode, "column", $this->getColumn());
+        } else {
+            $xml->createChildNode($parentNode, "question_id", $this->getId());
+        }
         if (in_array($this->getType(), self::OPTIONS_TYPES)) {
             $xml->createChildNode($parentNode, "value", '');
             $xml->createChildNode($parentNode, "option_id", $this->getValue());

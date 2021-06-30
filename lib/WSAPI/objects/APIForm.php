@@ -158,4 +158,47 @@ class APIForm {
 
         return null;
     }
+
+    /**
+     * Searches the array QUESTION at row $row with the $questionId indicated
+     *
+     * @param int $row
+     * @param int $questionId
+     * @return APIQuestion
+     */
+    public function findArrayQuestion($arrayRef, $row, $questionId) {
+        if ($this->questions === null) {
+            $f = $this->api->form_get_summary($this->id, true);
+            $this->questions = $f->getQuestions();
+        }
+
+        $referenceQuestion = null;
+        foreach ($this->questions as $q) {
+            if ($arrayRef != $q->getArrayRef()) {
+                continue;
+            }
+            if ($q->getQuestionTemplateId() == $questionId || $q->getItemCode() == $questionId) {
+                if ($q->getRow() == $row) {
+                    return $q;
+                }
+                if ($q->getRow() == 1) {
+                    $referenceQuestion = $q;
+                }
+            }
+        }
+        /*
+         * If we arrive here, it means that the specifued row does not exist yet. We have to add a new row andd add the question (using as reference
+         * the question with the same ID in the first row)
+         */
+        if ($referenceQuestion) {
+            $q = clone $referenceQuestion;
+        } else {
+            $q = new APIQuestion();
+            $q->setItemCode($questionId);
+            $q->setArrayRef($arrayRef);
+        }
+
+        $q->setRow($row);
+        return $q;
+    }
 }

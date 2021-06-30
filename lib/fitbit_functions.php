@@ -45,8 +45,8 @@ function refreshToken($refresh_token) {
  */
 function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale = 'es_ES') {
     // ONLY FOR DEBUG
-    // $steps = [['dateTime' => '2021-05-03', 'value' => '3224'], ['dateTime' => '2021-05-04', 'value' => '2864'],
-    // ['dateTime' => '2021-05-05', 'value' => '9230']];
+    // $steps = [['dateTime' => '2021-06-28', 'value' => '3224'], ['dateTime' => '2021-06-29', 'value' => '2864'],
+    // ['dateTime' => '2021-06-30', 'value' => '9230']];
     // return $steps;
     if (!$startDate) {
         $startDate = '2021-01-01';
@@ -130,6 +130,10 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
  * @return array
  */
 function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, $locale = 'es_ES') {
+    // ONLY FOR DEBUG
+    // $steps = [['time' => '09:10', 'value' => '300'], ['time' => '09:15', 'value' => '400'], ['time' => '10:22', 'value' => '500'],
+    // ['time' => '11:02', 'value' => '600']];
+    // return $steps;
     if (!$date) {
         $date = 'today';
     }

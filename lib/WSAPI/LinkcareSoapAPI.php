@@ -575,9 +575,31 @@ class LinkcareSoapAPI {
     function form_set_all_answers($formId, $questions, $closeForm = false) {
         $xml = new XMLHelper('questions');
 
+        $simpleQuestions = [];
+        $arrayQuestions = [];
         foreach ($questions as $q) {
+            if ($q->getRow()) {
+                $arrayQuestions[$q->getOrder()][$q->getRow()][$q->getQuestionTemplateId()] = $q;
+            } else {
+                $simpleQuestions[] = $q;
+            }
+        }
+
+        foreach ($simpleQuestions as $q) {
             $qNode = $xml->createChildNode(null, "question");
             $q->toXML($xml, $qNode);
+        }
+
+        foreach ($arrayQuestions as $arrayRef => $rows) {
+            $arrayNode = $xml->createChildNode(null, "array");
+            $xml->createChildNode($arrayNode, 'ref', $arrayRef);
+            foreach ($rows as $rowQuestions) {
+                $rowNode = $xml->createChildNode($arrayNode, "row");
+                foreach ($rowQuestions as $q) {
+                    $qNode = $xml->createChildNode($rowNode, "question");
+                    $q->toXML($xml, $qNode);
+                }
+            }
         }
 
         $params = ["form" => $formId, "xml_answers" => $xml->toString(), "close_form" => $closeForm ? "1" : ""];
