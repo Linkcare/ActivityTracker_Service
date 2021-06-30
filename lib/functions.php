@@ -454,7 +454,7 @@ function updateStepsTask($task, $stepsNumber, $date, $partialSteps = null) {
         }
 
         if (!empty($arrQuestions)) {
-            $api->form_set_all_answers($stepsForm->getId(), $arrQuestions, false);
+            $api->form_set_all_answers($stepsForm->getId(), $arrQuestions, true);
         }
         // $api->form_set_answer($stepsForm->getId(), $question->getId(), $stepsNumber);
         $task->setDate($date);
