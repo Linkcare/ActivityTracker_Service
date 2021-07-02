@@ -161,7 +161,6 @@ function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, 
         } else {
             $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/steps/date/' . $date . '/1d/' . $breakdownPeriod . '.json';
         }
-        var_dump($baseUrl);
         // Obtain the activity data from FITBIT
         $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
                 ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
@@ -172,7 +171,7 @@ function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, 
         $resource->setErrorCode("request_error");
         $resource->setErrorDescription($e->getMessage());
     }
-    var_dump($response['activities-steps-intraday']['dataset']);
+
     if (!$response || !$response['activities-steps-intraday']['dataset']) {
         if ($response['activities-steps'] && !$response['activities-steps-intraday']['dataset']) {
             $resource->setErrorCode("permissions_error");
@@ -189,5 +188,79 @@ function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, 
     }
 
     return $response['activities-steps-intraday']['dataset'];
+}
+
+/**
+ * Obtain a list of devices for the user with its data, which includes 'lastSyncTime'.
+ * Returned data is breakdown for each device. It will have the following format:
+ * <ul>
+ * <li> <p>'[{ "battery": "High",</p>
+ * <p> "deviceVersion": "Charge HR",</p>
+ * <p>"id": "27072629", </p>
+ * <p>"lastSyncTime": "2015-07-27T17:01:39.313",</p>
+ * <p>"type": "TRACKER" },</p>
+ * </li>
+ * <li> <p>'{ "battery": "Empty",</p>
+ * <p>"deviceVersion": "MobileTrack",</p>
+ * <p>"id": "29559794",</p>
+ * <p>"lastSyncTime": "2015-07-19T16:57:59.000",</p>
+ * <p>"type": "TRACKER" }, ...]</p>
+ * </li>
+ * </ul>
+ *
+ * Possible error codes returned in FitbitResource:
+ * <ul>
+ * <li>refresh_token_error: there was an error while refreshing the expired token.</li>
+ * <li>request_error: there was an error while obtaining the activity data.</li>
+ * <li>unknown_error: the obtained data has changed its format or there was an uncaught error.</li>
+ * </ul>
+ *
+ * @param FitbitResource $resource
+ * @param string $locale
+ * @return array
+ */
+function getDeviceData(FitbitResource $resource, $locale = 'es_ES') {
+    $accessToken = new AccessToken(['access_token' => $resource->getAccessToken(), 'refresh_token' => $resource->getRefreshToken(),
+            'expires_in' => ($resource->getExpiration() - time())]);
+
+    if ($accessToken->hasExpired()) {
+        try {
+            $accessToken = refreshToken($resource->getRefreshToken());
+            $resource->setAccessToken($accessToken->getToken());
+            $resource->setRefreshToken($accessToken->getRefreshToken());
+            $resource->setExpiration($accessToken->getExpires());
+        } catch (Exception $e) {
+            // The call was wrongly performed.
+            $resource->setErrorCode("refresh_token_error");
+            $resource->setErrorDescription($e->getMessage());
+            return [];
+        }
+    }
+
+    try {
+        $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/devices.json';
+        var_dump($baseUrl);
+        // Obtain the activity data from FITBIT
+        $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
+                ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
+
+        $response = Fitbit::getProvider()->getParsedResponse($request);
+    } catch (Exception $e) {
+        // Failed to perform the request.
+        $resource->setErrorCode("request_error");
+        $resource->setErrorDescription($e->getMessage());
+    }
+
+    if (!$response) {
+        if ($resource->getErrorCode() == null) {
+            $resource->setErrorCode('unknown_error');
+        }
+        if ($resource->getErrorDescription() == null) {
+            $resource->setErrorDescription('Some error happened when requesting activity information.');
+        }
+        return [];
+    }
+
+    return $response;
 }
 ?>
