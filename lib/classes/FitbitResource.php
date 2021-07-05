@@ -1,8 +1,11 @@
 <?php
+use FitbitOAuth2Client\Fitbit;
+use League\OAuth2\Client\Token\AccessToken;
+use function GuzzleHttp\json_decode;
 
 class FitbitResource {
     /**  @var string */
-    protected $accessToken;
+    protected $token;
 
     /** @var string */
     protected $refreshToken;
@@ -25,6 +28,9 @@ class FitbitResource {
     /** @var boolean */
     private $hasChanged = false;
 
+    /** @var AccessToken */
+    private $accessToken = null;
+
     /**
      * Constructs the Fitbit Resource object with the tokens and different data.
      *
@@ -33,7 +39,7 @@ class FitbitResource {
      */
     public function __construct(array $options = []) {
         if (!empty($options['access_token'])) {
-            $this->accessToken = $options['access_token'];
+            $this->token = $options['access_token'];
         }
         if (!empty($options['refresh_token'])) {
             $this->refreshToken = $options['refresh_token'];
@@ -57,6 +63,26 @@ class FitbitResource {
         if (!empty($options['taskId'])) {
             $this->taskId = $options['taskId'];
         }
+
+        if ($this->token && $this->refreshToken && $this->expiration && !$this->errorCode && !$this->errorDescription) {
+            $accessToken = new AccessToken(['access_token' => $this->token, 'refresh_token' => $this->refreshToken,
+                    'expires_in' => ($this->expiration - time())]);
+
+            if ($accessToken->hasExpired()) {
+                try {
+                    $accessToken = Fitbit::getProvider()->getAccessToken('refresh_token', ['refresh_token' => $this->getRefreshToken()]);
+                    $this->setAccessToken($accessToken->getToken());
+                    $this->setRefreshToken($accessToken->getRefreshToken());
+                    $this->setExpiration($accessToken->getExpires());
+                } catch (Exception $e) {
+                    // The call was wrongly performed.
+                    $this->setErrorCode("refresh_token_error");
+                    $this->setErrorDescription($e->getMessage());
+                    $accessToken = null;
+                }
+            }
+            $this->accessToken = $accessToken;
+        }
     }
 
     /*
@@ -67,10 +93,18 @@ class FitbitResource {
 
     /**
      *
-     * @return string
+     * @return AccessToken
      */
     public function getAccessToken() {
         return $this->accessToken;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getToken() {
+        return $this->token;
     }
 
     /**
@@ -144,10 +178,10 @@ class FitbitResource {
      * @param string $accessToken
      */
     public function setAccessToken($accessToken) {
-        if ($this->accessToken != $accessToken) {
+        if ($this->token != $accessToken) {
             $this->hasChanged = true;
         }
-        $this->accessToken = $accessToken;
+        $this->token = $accessToken;
     }
 
     /**
@@ -178,7 +212,7 @@ class FitbitResource {
      */
     public function setErrorCode($errorCode) {
         if ($errorCode) {
-            $this->accessToken = null;
+            $this->token = null;
             $this->refreshToken = null;
             $this->expiration = null;
             $this->hasChanged = true;
@@ -204,7 +238,7 @@ class FitbitResource {
      * @return boolean
      */
     public function isValid() {
-        if ($this->errorCode || !$this->accessToken || !$this->refreshToken || !$this->expiration) {
+        if ($this->errorCode || !$this->token || !$this->refreshToken || !$this->expiration) {
             return false;
         }
 

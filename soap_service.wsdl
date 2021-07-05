@@ -18,6 +18,14 @@
         <wsdl:part name="ErrorMsg" type="xsd:string"/>
     </wsdl:message>
 
+    <wsdl:message name="sync_statusRequest">
+        <wsdl:part name="task" type="xsd:string"/>
+    </wsdl:message>
+    <wsdl:message name="sync_statusResponse">
+        <wsdl:part name="result" type="xsd:string"/>
+        <wsdl:part name="ErrorMsg" type="xsd:string"/>
+    </wsdl:message>
+
     <wsdl:message name="calculate_target_statusRequest">
         <wsdl:part name="task" type="xsd:string"/>
         <wsdl:part name="date" type="xsd:string"/>
@@ -62,6 +70,11 @@
             <wsdl:output message="intf:update_activityResponse" name="update_activityResponse"/>
         </wsdl:operation>
 
+        <wsdl:operation name="sync_status" parameterOrder="task result ErrorMsg">
+            <wsdl:input message="intf:sync_statusRequest" name="sync_statusRequest"/>
+            <wsdl:output message="intf:sync_statusResponse" name="sync_statusResponse"/>
+        </wsdl:operation>
+
         <wsdl:operation name="calculate_target_status" parameterOrder="task date result ErrorMsg">
             <wsdl:input message="intf:calculate_target_statusRequest" name="calculate_target_statusRequest"/>
             <wsdl:output message="intf:calculate_target_statusResponse" name="calculate_target_statusResponse"/>
@@ -95,6 +108,21 @@
                         use="encoded"/>
             </wsdl:input>
             <wsdl:output name="update_activityResponse">
+                <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                               namespace="http://linkcare.es/LINKCARE"
+                               use="encoded"/>
+            </wsdl:output>
+        </wsdl:operation>
+
+        <wsdl:operation name="sync_status">
+            <wsdlsoap:operation soapAction="LINKCARE#sync_status"/>
+            <wsdl:input name="sync_statusRequest">
+                <wsdlsoap:body
+                        encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                        namespace="http://linkcare.es/LINKCARE"
+                        use="encoded"/>
+            </wsdl:input>
+            <wsdl:output name="sync_statusResponse">
                 <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
                                namespace="http://linkcare.es/LINKCARE"
                                use="encoded"/>

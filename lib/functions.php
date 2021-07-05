@@ -40,7 +40,7 @@ function storeAuthorization($fbRes) {
             $arrQuestions[] = $q;
         }
         if ($q = $authForm->findQuestion('ACCESS_TOKEN')) {
-            $q->setValue($fbRes->getAccessToken());
+            $q->setValue($fbRes->getToken());
             $arrQuestions[] = $q;
         }
         if ($q = $authForm->findQuestion('REFRESH_TOKEN')) {
@@ -92,49 +92,11 @@ function updatePatientActivity($taskId, $toDate) {
 
     log_trace("UPDATE PATIENT ACTIVITY. Date: $toDate,  Admission: $admissionId");
 
-    // Get Fitbit OAuth credentials from the most recent autentication TASK
-    $filter = new TaskFilter();
-    $filter->setObjectType('TASKS');
-    $filter->setStatusIds('CLOSED');
-    $filter->setTaskCodes([$GLOBALS['TASK_CODES']['AUTH'], $GLOBALS['TASK_CODES']['RENEW_AUTH']]);
-    $authTasks = $api->admission_get_task_list($admissionId, 100, 0, $filter, false);
-    /* @var APIForm $credentialsForm */
-    $credentialsForm = null;
-    if (!empty($authTasks)) {
-        /* @var APITask $t */
-        $t = reset($authTasks);
-        $forms = $api->task_activity_list($t->getId());
-        foreach ($forms as $f) {
-            if ($f->getFormCode() == $GLOBALS['FORM_CODES']['AUTH']) {
-                $credentialsForm = $api->form_get_summary($f->getId());
-                break;
-            }
-        }
-    }
+    $fitbitCredentials = loadFitbitCredentials($admissionId);
 
-    if (!$credentialsForm) {
-        log_trace("ERROR! Authorization not found", 1);
-        return ['ErrorMsg' => 'Authorization missing', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
-    }
-
-    $options = [];
-    $fitbitCredentials = null;
-    foreach ($credentialsForm->getQuestions() as $q) {
-        if ($q->getItemCode() == 'ACCESS_TOKEN') {
-            $options['access_token'] = $q->getValue();
-        }
-        if ($q->getItemCode() == 'REFRESH_TOKEN') {
-            $options['refresh_token'] = $q->getValue();
-        }
-        if ($q->getItemCode() == 'EXPIRATION') {
-            $options['expiration'] = $q->getValue();
-        }
-    }
-    $fitbitCredentials = new FitbitResource($options);
-
-    if (!$fitbitCredentials || !$fitbitCredentials->isValid()) {
-        log_trace("ERROR! Fitbit credentials are missing or not valid", 1);
-        return ['ErrorMsg' => 'Fitbit credentials are missing or not valid', 'ErrorCode' => 'AUTHORIZATION_MISSING'];
+    if (!$fitbitCredentials->isValid()) {
+        log_trace('ERROR! Invalid Fitbit credentials: ' . $fitbitCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription(), 'ErrorCode' => $fitbitCredentials->getErrorCode()];
     }
 
     // Find last reported activity
@@ -192,42 +154,62 @@ function updatePatientActivity($taskId, $toDate) {
         }
     }
 
-    // Update OAuth tokens if they have changed
-    if ($fitbitCredentials->changed()) {
-        $arrQuestions = [];
-        foreach ($credentialsForm->getQuestions() as $q) {
-            if ($q = $credentialsForm->findQuestion('RESPONSE')) {
-                $authorized = $fitbitCredentials->getErrorCode() ? '2' : '1';
-                $q->setValue($authorized);
-                $arrQuestions[] = $q;
-            }
-            if ($q = $credentialsForm->findQuestion('ACCESS_TOKEN')) {
-                $q->setValue($fitbitCredentials->getAccessToken());
-                $arrQuestions[] = $q;
-            }
-            if ($q = $credentialsForm->findQuestion('REFRESH_TOKEN')) {
-                $q->setValue($fitbitCredentials->getRefreshToken());
-                $arrQuestions[] = $q;
-            }
-            if ($q = $credentialsForm->findQuestion('EXPIRATION')) {
-                $q->setValue($fitbitCredentials->getExpiration());
-                $arrQuestions[] = $q;
-            }
-            if ($q = $credentialsForm->findQuestion('EXPIRATION_DATE')) {
-                $q->setValue($fitbitCredentials->getExpirationDate());
-                $arrQuestions[] = $q;
-            }
-            if ($q = $credentialsForm->findQuestion('ERROR_CODE')) {
-                $q->setValue($fitbitCredentials->getErrorCode());
-                $arrQuestions[] = $q;
-            }
-            if ($q = $credentialsForm->findQuestion('ERROR_DESCRIPTION')) {
-                $q->setValue($fitbitCredentials->getErrorDescription());
-                $arrQuestions[] = $q;
-            }
-            $api->form_set_all_answers($credentialsForm->getId(), $arrQuestions, false);
+    return ['ErrorMsg' => '', 'ErrorCode' => ''];
+}
+
+/**
+ * Checks the status of the synchronization of a device with the Fitbit server
+ *
+ * @param string $taskId Reference to the TASK where the sync status will be stored
+ */
+function checkSyncStatus($taskId) {
+    $api = LinkcareSoapAPI::getInstance();
+    $task = $api->task_get($taskId);
+
+    log_trace("Checking sync status. Task: " . $task->getId() . ", Date:" . $task->getDate() . ", Patient: " . $task->getCaseId());
+
+    $fitbitCredentials = loadFitbitCredentials($task->getAdmissionId());
+    if (!$fitbitCredentials->isValid()) {
+        log_trace('ERROR! Invalid Fitbit credentials: ' . $fitbitCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription(), 'ErrorCode' => $fitbitCredentials->getErrorCode()];
+    }
+
+    $syncStatusForm = $task->findForm($GLOBALS['FORM_CODES']['SYNC_STATUS']);
+    if (!$syncStatusForm) {
+        $errorMsg = "FORM NOT FOUND: " . $GLOBALS['FORM_CODES']['SYNC_STATUS'];
+        log_trace("ERROR! " . $errorMsg, 1);
+        throw new APIException("FORM.NOT_FOUND", $errorMsg);
+    }
+
+    $devData = getDeviceData($fitbitCredentials);
+    if ($fitbitCredentials->getErrorCode()) {
+        log_trace("ERROR! Fitbit returned: " . $fitbitCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription()];
+    }
+
+    $lastSyncTime = '';
+    $batteryLevel = null;
+    foreach ($devData as $device) {
+        if ($device['type'] != 'TRACKER') {
+            continue;
+        }
+        if ($lastSyncTime < $device['lastSyncTime']) {
+            $lastSyncTime = $device['lastSyncTime'];
+            $batteryLevel = $device['batteryLevel'];
         }
     }
+
+    $arrQuestions = [];
+
+    if ($q = $syncStatusForm->findQuestion($GLOBALS['ITEM_CODES']['LAST_SYNC_TIME'])) {
+        $q->setValue($lastSyncTime);
+        $arrQuestions[] = $q;
+    }
+    if ($q = $syncStatusForm->findQuestion($GLOBALS['ITEM_CODES']['BATTERY_LEVEL'])) {
+        $q->setValue($batteryLevel);
+        $arrQuestions[] = $q;
+    }
+    $api->form_set_all_answers($syncStatusForm->getId(), $arrQuestions, true);
 
     return ['ErrorMsg' => '', 'ErrorCode' => ''];
 }
@@ -319,7 +301,7 @@ function storeAuthorizarionUrl(FitbitResource $resource) {
         $query[] = 'error=' . urlencode($resource->getErrorDescription());
         $query[] = 'error_code=' . urlencode($resource->getErrorCode());
     } else {
-        $query[] = 'access_token=' . urlencode($resource->getAccessToken());
+        $query[] = 'access_token=' . urlencode($resource->getToken());
         $query[] = 'refresh_token=' . urlencode($resource->getRefreshToken());
         $query[] = 'exp=' . urlencode($resource->getExpiration());
     }
@@ -460,4 +442,96 @@ function updateStepsTask($task, $stepsNumber, $date, $partialSteps = null) {
         $task->setDate($date);
         $api->task_set($task);
     }
+}
+
+/**
+ *
+ * @param string $admissionId
+ * @return FitbitResource
+ */
+function loadFitbitCredentials($admissionId) {
+    $api = LinkcareSoapAPI::getInstance();
+
+    // Get Fitbit OAuth credentials from the most recent autentication TASK
+    $filter = new TaskFilter();
+    $filter->setObjectType('TASKS');
+    $filter->setStatusIds('CLOSED');
+    $filter->setTaskCodes([$GLOBALS['TASK_CODES']['AUTH'], $GLOBALS['TASK_CODES']['RENEW_AUTH']]);
+    $authTasks = $api->admission_get_task_list($admissionId, 100, 0, $filter, false);
+    /* @var APIForm $credentialsForm */
+    $credentialsForm = null;
+    if (!empty($authTasks)) {
+        /* @var APITask $t */
+        $t = reset($authTasks);
+        $forms = $api->task_activity_list($t->getId());
+        foreach ($forms as $f) {
+            if ($f->getFormCode() == $GLOBALS['FORM_CODES']['AUTH']) {
+                $credentialsForm = $api->form_get_summary($f->getId());
+                break;
+            }
+        }
+    }
+
+    if (!$credentialsForm) {
+        $options['errorCode'] = 'AUTHORIZATION_MISSING';
+        $options['errorDescription'] = 'Fitbit credentials not found in this ADMISSION';
+        return new FitbitResource($options);
+    }
+
+    $options = [];
+    foreach ($credentialsForm->getQuestions() as $q) {
+        if ($q->getItemCode() == 'ACCESS_TOKEN') {
+            $options['access_token'] = $q->getValue();
+        }
+        if ($q->getItemCode() == 'REFRESH_TOKEN') {
+            $options['refresh_token'] = $q->getValue();
+        }
+        if ($q->getItemCode() == 'EXPIRATION') {
+            $options['expiration'] = $q->getValue();
+        }
+    }
+
+    $resource = new FitbitResource($options);
+    if (!$resource->isValid()) {
+        return $resource;
+    }
+
+    // Update OAuth tokens if they have changed
+    if ($resource->changed()) {
+        $arrQuestions = [];
+        foreach ($credentialsForm->getQuestions() as $q) {
+            if ($q = $credentialsForm->findQuestion('RESPONSE')) {
+                $authorized = $resource->getErrorCode() ? '2' : '1';
+                $q->setValue($authorized);
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('ACCESS_TOKEN')) {
+                $q->setValue($resource->getToken());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('REFRESH_TOKEN')) {
+                $q->setValue($resource->getRefreshToken());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('EXPIRATION')) {
+                $q->setValue($resource->getExpiration());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('EXPIRATION_DATE')) {
+                $q->setValue($resource->getExpirationDate());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('ERROR_CODE')) {
+                $q->setValue($resource->getErrorCode());
+                $arrQuestions[] = $q;
+            }
+            if ($q = $credentialsForm->findQuestion('ERROR_DESCRIPTION')) {
+                $q->setValue($resource->getErrorDescription());
+                $arrQuestions[] = $q;
+            }
+        }
+        $api->form_set_all_answers($credentialsForm->getId(), $arrQuestions, false);
+    }
+
+    return $resource;
 }

@@ -779,9 +779,8 @@ const ACH_MODE_RETURN = 'RETURN';
 function calculateAchievement($taskId, $distance, $mode = 'STAY') {
     $api = LinkcareSoapAPI::getInstance();
     $task = $api->task_get($taskId);
-    $admission = $api->admission_get($task->getAdmissionId());
 
-    log_trace("Calculating achievement. Task: " . $task->getId() . ", Date:" . $task->getDate() . ", Patient: " . $admission->getCaseId());
+    log_trace("Calculating achievement. Task: " . $task->getId() . ", Date:" . $task->getDate() . ", Patient: " . $task->getCaseId());
 
     $cityForm = $task->findForm($GLOBALS['FORM_CODES']['CITY_INFO']);
     if (!$cityForm) {

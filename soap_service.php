@@ -19,6 +19,7 @@ try {
     $server->addFunction("insert_new_goal");
     $server->addFunction("insert_steps");
     $server->addFunction("calculate_achievement");
+    $server->addFunction("sync_status");
     $server->handle();
 } catch (APIException $e) {
     log_trace('UNEXPECTED API ERROR executing SOAP function: ' . $e->getMessage());
@@ -189,6 +190,31 @@ function calculate_achievement($task, $distance, $mode = 'STAY') {
     }
 
     $result = $errorMsg ? 0 : 1;
+    if ($errorMsg) {
+        log_trace("ERROR: $errorMsg", 1);
+    }
+    return ['result' => $result, 'ErrorMsg' => $errorMsg];
+}
+
+/**
+ * Checks the status of the synchronization of a device with the Fitbit server
+ *
+ * @param string $task Reference to the TASK where the sybcronization status will be stored
+ */
+function sync_status($task) {
+    log_trace("CHECK SYNC STATUS. Task: $task");
+    $errorMsg = null;
+
+    try {
+        $resp = checkSyncStatus($task);
+        $errorMsg = $resp['ErrorMsg'];
+    } catch (APIException $e) {
+        $errorMsg = $e->getMessage();
+    } catch (Exception $e) {
+        $errorMsg = $e->getMessage();
+    }
+
+    $result = $errorMsg ? '' : $resp['result'];
     if ($errorMsg) {
         log_trace("ERROR: $errorMsg", 1);
     }

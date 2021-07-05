@@ -8,18 +8,6 @@ use League\OAuth2\Client\Token\AccessToken;
 use function GuzzleHttp\json_decode;
 
 /**
- * Refresh the token since it has expired.
- *
- * @param string $refresh_token
- * @return AccessToken
- */
-function refreshToken($refresh_token) {
-    $accessToken = Fitbit::getProvider()->getAccessToken('refresh_token', ['refresh_token' => $refresh_token]);
-
-    return $accessToken;
-}
-
-/**
  * Obtain the Activity data from the FITBIT API using two dates.
  * The date parameters are itself included in the response, they have to be in 'yyyy-MM-dd' format.<br>
  * The return an associative array formatted as follows:
@@ -55,21 +43,9 @@ function getActivityData(FitbitResource $resource, $startDate, $endDate, $locale
         $endDate = 'today';
     }
 
-    $accessToken = new AccessToken(['access_token' => $resource->getAccessToken(), 'refresh_token' => $resource->getRefreshToken(),
-            'expires_in' => ($resource->getExpiration() - time())]);
-
-    if ($accessToken->hasExpired()) {
-        try {
-            $accessToken = refreshToken($resource->getRefreshToken());
-            $resource->setAccessToken($accessToken->getToken());
-            $resource->setRefreshToken($accessToken->getRefreshToken());
-            $resource->setExpiration($accessToken->getExpires());
-        } catch (Exception $e) {
-            // The call was wrongly performed.
-            $resource->setErrorCode("refresh_token_error");
-            $resource->setErrorDescription($e->getMessage());
-            return [];
-        }
+    $accessToken = $resource->getAccessToken();
+    if (!$accessToken) {
+        return [];
     }
 
     try {
@@ -138,21 +114,9 @@ function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, 
         $date = 'today';
     }
 
-    $accessToken = new AccessToken(['access_token' => $resource->getAccessToken(), 'refresh_token' => $resource->getRefreshToken(),
-            'expires_in' => ($resource->getExpiration() - time())]);
-
-    if ($accessToken->hasExpired()) {
-        try {
-            $accessToken = refreshToken($resource->getRefreshToken());
-            $resource->setAccessToken($accessToken->getToken());
-            $resource->setRefreshToken($accessToken->getRefreshToken());
-            $resource->setExpiration($accessToken->getExpires());
-        } catch (Exception $e) {
-            // The call was wrongly performed.
-            $resource->setErrorCode("refresh_token_error");
-            $resource->setErrorDescription($e->getMessage());
-            return [];
-        }
+    $accessToken = $resource->getAccessToken();
+    if (!$accessToken) {
+        return [];
     }
 
     try {
@@ -195,6 +159,7 @@ function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, 
  * Returned data is breakdown for each device. It will have the following format:
  * <ul>
  * <li> <p>'[{ "battery": "High",</p>
+ * <p> "batteryLevel": 25,</p>
  * <p> "deviceVersion": "Charge HR",</p>
  * <p>"id": "27072629", </p>
  * <p>"lastSyncTime": "2015-07-27T17:01:39.313",</p>
@@ -220,26 +185,13 @@ function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, 
  * @return array
  */
 function getDeviceData(FitbitResource $resource, $locale = 'es_ES') {
-    $accessToken = new AccessToken(['access_token' => $resource->getAccessToken(), 'refresh_token' => $resource->getRefreshToken(),
-            'expires_in' => ($resource->getExpiration() - time())]);
-
-    if ($accessToken->hasExpired()) {
-        try {
-            $accessToken = refreshToken($resource->getRefreshToken());
-            $resource->setAccessToken($accessToken->getToken());
-            $resource->setRefreshToken($accessToken->getRefreshToken());
-            $resource->setExpiration($accessToken->getExpires());
-        } catch (Exception $e) {
-            // The call was wrongly performed.
-            $resource->setErrorCode("refresh_token_error");
-            $resource->setErrorDescription($e->getMessage());
-            return [];
-        }
+    $accessToken = $resource->getAccessToken();
+    if (!$accessToken) {
+        return [];
     }
 
     try {
         $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/devices.json';
-        var_dump($baseUrl);
         // Obtain the activity data from FITBIT
         $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
                 ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
@@ -261,6 +213,13 @@ function getDeviceData(FitbitResource $resource, $locale = 'es_ES') {
         return [];
     }
 
-    return $response;
+    $deviceData = [];
+    foreach ($response as $device) {
+        // Format datetime from '2021-07-01T12:23:11.000' to '2021-07-01 12:23:11'
+        $syncTime = $device['lastSyncTime'];
+        $device['lastSyncTime'] = str_replace('T', ' ', explode('.', $syncTime)[0]);
+        $deviceData[] = $device;
+    }
+    return $deviceData;
 }
 ?>
