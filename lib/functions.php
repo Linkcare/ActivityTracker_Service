@@ -211,7 +211,7 @@ function checkSyncStatus($taskId) {
     }
     $api->form_set_all_answers($syncStatusForm->getId(), $arrQuestions, true);
 
-    return ['ErrorMsg' => '', 'ErrorCode' => ''];
+    return ['result' => $lastSyncTime, 'ErrorMsg' => '', 'ErrorCode' => ''];
 }
 
 /**
