@@ -203,7 +203,7 @@ function getDeviceData(FitbitResource $resource, $locale = 'es_ES') {
         $resource->setErrorDescription($e->getMessage());
     }
 
-    if (!$response) {
+    if ($response === null) {
         if ($resource->getErrorCode() == null) {
             $resource->setErrorCode('unknown_error');
         }
@@ -213,6 +213,10 @@ function getDeviceData(FitbitResource $resource, $locale = 'es_ES') {
         return [];
     }
 
+    if (empty($response)) {
+        // No sync information available. Return a default date
+        $response[] = ['lastSyncTime' => '0000-00-00T00:00:00.000'];
+    }
     $deviceData = [];
     foreach ($response as $device) {
         // Format datetime from '2021-07-01T12:23:11.000' to '2021-07-01 12:23:11'
