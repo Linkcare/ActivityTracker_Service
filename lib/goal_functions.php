@@ -117,6 +117,13 @@ function insertNewGoal($taskId, $patientChoice, $calcDate) {
         $goalKeep = intval($q->getValue());
         log_trace("GOAL KEEP: $goalKeep", 1);
     }
+    if (!$goalKeep) {
+        /*
+         * If a goal has not been defined yet, the patient is in BASELINE period and the NEW GOAL TASK should not be inserted.
+         */
+        log_trace("No GOAL defined yet. The patient is in BASELINE period and we cannot insert a NEW GOAL TASK", 1);
+        return ['ErrorMsg' => '', 'ErrorCode' => ''];
+    }
     if (($q = $agrForm->findQuestion($GLOBALS['ITEM_CODES']['TARGET_GOAL_5M'])) && $q->getValue()) {
         $goal5m = intval($q->getValue());
         log_trace("GOAL 5M: $goal5m", 1);
