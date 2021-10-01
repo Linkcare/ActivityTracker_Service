@@ -64,6 +64,20 @@
         <wsdl:part name="ErrorMsg" type="xsd:string"/>
     </wsdl:message>
 
+    <wsdl:message name="set_device_user_profileRequest">
+        <wsdl:part name="admission" type="xsd:string"/>
+        <wsdl:part name="fullname" type="xsd:string"/>
+        <wsdl:part name="gender" type="xsd:string"/>
+        <wsdl:part name="birthday" type="xsd:string"/>
+        <wsdl:part name="height" type="xsd:string"/>
+        <wsdl:part name="stride_length_walking" type="xsd:string"/>
+        <wsdl:part name="stride_length_running" type="xsd:string"/>
+    </wsdl:message>
+    <wsdl:message name="set_device_user_profileResponse">
+        <wsdl:part name="result" type="xsd:string"/>
+        <wsdl:part name="ErrorMsg" type="xsd:string"/>
+    </wsdl:message>
+
     <wsdl:portType name="LINKCARE">
         <wsdl:operation name="update_activity" parameterOrder="task date result ErrorMsg">
             <wsdl:input message="intf:update_activityRequest" name="update_activityRequest"/>
@@ -93,6 +107,11 @@
         <wsdl:operation name="calculate_achievement" parameterOrder="task distance mode result ErrorMsg">
             <wsdl:input message="intf:calculate_achievementRequest" name="calculate_achievementRequest"/>
             <wsdl:output message="intf:calculate_achievementResponse" name="calculate_achievementResponse"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="set_device_user_profile" parameterOrder="admission fullname gender birthday height stride_length_walking stride_length_running result ErrorMsg">
+            <wsdl:input message="intf:set_device_user_profileRequest" name="set_device_user_profileRequest"/>
+            <wsdl:output message="intf:set_device_user_profileResponse" name="set_device_user_profileResponse"/>
         </wsdl:operation>
     </wsdl:portType>
 
@@ -183,6 +202,21 @@
                         use="encoded"/>
             </wsdl:input>
             <wsdl:output name="calculate_achievementResponse">
+                <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                               namespace="http://linkcare.es/LINKCARE"
+                               use="encoded"/>
+            </wsdl:output>
+        </wsdl:operation>
+
+        <wsdl:operation name="set_device_user_profile">
+            <wsdlsoap:operation soapAction="LINKCARE#set_device_user_profile"/>
+            <wsdl:input name="set_device_user_profileRequest">
+                <wsdlsoap:body
+                        encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+                        namespace="http://linkcare.es/LINKCARE"
+                        use="encoded"/>
+            </wsdl:input>
+            <wsdl:output name="set_device_user_profileResponse">
                 <wsdlsoap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
                                namespace="http://linkcare.es/LINKCARE"
                                use="encoded"/>

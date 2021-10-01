@@ -18,10 +18,13 @@ function storeAuthorization($fbRes) {
 
     // Update the ITEMs of the authorization FORM with the information received
     $authForm = null;
+    $patientDataForm = null;
     foreach ($activityList as $a) {
         if ($a->getFormCode() == $GLOBALS['FORM_CODES']['AUTH']) {
             $authForm = $api->form_get_summary($a->getId(), true, false);
-            break;
+        }
+        if ($a->getFormCode() == $GLOBALS['FORM_CODES']['PATIENT_DATA']) {
+            $patientDataForm = $api->form_get_summary($a->getId(), true, false);
         }
     }
 
@@ -64,6 +67,35 @@ function storeAuthorization($fbRes) {
             $arrQuestions[] = $q;
         }
         $api->form_set_all_answers($authForm->getId(), $arrQuestions, false);
+    }
+
+    // Update user profile information in Fitbit
+    if (!$fbRes->getErrorCode()) {
+        $patient = $api->case_get_contact($task->getCaseId());
+        $profileInfo = [];
+        if ($patient) {
+            $profileInfo['fullname'] = $patient->getFullName();
+            switch ($patient->getGender()) {
+                case 'M' :
+                    $profileInfo['gender'] = 'MALE';
+                    break;
+                case 'F' :
+                    $profileInfo['gender'] = 'FEMALE';
+                    break;
+            }
+            $profileInfo['birthday'] = $patient->getBirthdate();
+        }
+
+        if ($patientDataForm) {
+            if ($q = $patientDataForm->findQuestion('STEP_LENGTH')) {
+                $profileInfo['strideLengthWalking'] = $q->getValue();
+            }
+            if ($q = $patientDataForm->findQuestion('HEIGHT')) {
+                $profileInfo['height'] = $q->getValue();
+            }
+        }
+
+        fitbitUpdateProfile($fbRes, $profileInfo);
     }
 
     $lc2Action = new LC2Action(LC2Action::ACTION_REDIRECT_TO_TASK);
@@ -212,6 +244,33 @@ function checkSyncStatus($taskId) {
     $api->form_set_all_answers($syncStatusForm->getId(), $arrQuestions, true);
 
     return ['result' => $lastSyncTime, 'ErrorMsg' => '', 'ErrorCode' => ''];
+}
+
+/**
+ * Checks the status of the synchronization of a device with the Fitbit server
+ *
+ * @param string $admissionId Reference to the ADMISSION of the patient
+ */
+function setDeviceUserProfile($admissionId, $profileData) {
+    log_trace("Set device user profile. Admission: " . $admissionId . ", ProfileData: " . json_encode($profileData));
+
+    $profileData = array_filter($profileData);
+    if (empty($profileData)) {
+        return ['result' => 1, 'ErrorMsg' => '', 'ErrorCode' => ''];
+    }
+    $fitbitCredentials = loadFitbitCredentials($admissionId);
+    if (!$fitbitCredentials->isValid()) {
+        log_trace('ERROR! Invalid Fitbit credentials: ' . $fitbitCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription(), 'ErrorCode' => $fitbitCredentials->getErrorCode()];
+    }
+
+    fitbitUpdateProfile($fitbitCredentials, $profileData);
+    if ($fitbitCredentials->getErrorCode()) {
+        log_trace("ERROR! Fitbit returned: " . $fitbitCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription()];
+    }
+
+    return ['result' => 1, 'ErrorMsg' => '', 'ErrorCode' => ''];
 }
 
 /**

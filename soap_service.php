@@ -20,6 +20,8 @@ try {
     $server->addFunction("insert_steps");
     $server->addFunction("calculate_achievement");
     $server->addFunction("sync_status");
+    $server->addFunction("set_device_user_profile");
+
     $server->handle();
 } catch (APIException $e) {
     log_trace('UNEXPECTED API ERROR executing SOAP function: ' . $e->getMessage());
@@ -199,7 +201,7 @@ function calculate_achievement($task, $distance, $mode = 'STAY') {
 /**
  * Checks the status of the synchronization of a device with the Fitbit server
  *
- * @param string $task Reference to the TASK where the sybcronization status will be stored
+ * @param string $task Reference to the TASK where the syncronization status will be stored
  */
 function sync_status($task) {
     log_trace("CHECK SYNC STATUS. Task: $task");
@@ -207,6 +209,64 @@ function sync_status($task) {
 
     try {
         $resp = checkSyncStatus($task);
+        $errorMsg = $resp['ErrorMsg'];
+    } catch (APIException $e) {
+        $errorMsg = $e->getMessage();
+    } catch (Exception $e) {
+        $errorMsg = $e->getMessage();
+    }
+
+    $result = $errorMsg ? '' : $resp['result'];
+    if ($errorMsg) {
+        log_trace("ERROR: $errorMsg", 1);
+    }
+    return ['result' => $result, 'ErrorMsg' => $errorMsg];
+}
+
+/**
+ * Mofifies the user profile data in the device provider (Fitbit)
+ *
+ * @param string $admission Reference to the ADMISSION where the credentials of the user will be searched
+ */
+function set_device_user_profile($admission, $fullname = null, $gender = null, $birthday = null, $height = null, $stride_length_walking = null,
+        $stride_length_running = null) {
+    log_trace(
+            "SET DEVICE USER PROFILE. Gender: $gender, Birthday: $birthday, Fullname: $fullname, Stride length walking: $stride_length_walking, Stride length running: $stride_length_running");
+    $errorMsg = null;
+    $parameters = [];
+
+    $gender = trim(strtoupper($gender));
+    if (!isNullOrEmpty($gender) && in_array($gender, ['M', 'F', '?'])) {
+        switch ($gender) {
+            case 'M' :
+                $parameters['gender'] = 'MALE';
+                break;
+            case 'F' :
+                $parameters['gender'] = 'FEMALE';
+                break;
+            default :
+                $parameters['gender'] = 'NA';
+                break;
+        }
+    }
+    if (!isNullOrEmpty($birthday) && strtotime($birthday)) {
+        $birthday = date('Y-m-d', strtotime($birthday));
+        $parameters['birthday'] = $birthday;
+    }
+    if (intval($height) > 0) {
+        $parameters['height'] = intval($height);
+    }
+    if (!isNullOrEmpty($fullname)) {
+        $parameters['fullname'] = $fullname;
+    }
+    if (intval($stride_length_walking) > 0) {
+        $parameters['strideLengthWalking'] = intval($stride_length_walking);
+    }
+    if (intval($stride_length_running) > 0) {
+        $parameters['strideLengthRunning'] = intval($stride_length_running);
+    }
+    try {
+        $resp = setDeviceUserProfile($admission, $parameters);
         $errorMsg = $resp['ErrorMsg'];
     } catch (APIException $e) {
         $errorMsg = $e->getMessage();
