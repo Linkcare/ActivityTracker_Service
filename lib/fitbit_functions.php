@@ -226,4 +226,163 @@ function getDeviceData(FitbitResource $resource, $locale = 'es_ES') {
     }
     return $deviceData;
 }
+
+/**
+ * Update the FitBit profile of a user, the following fields are supported:
+ * <ul>
+ * <li> fullname: Full name </li>
+ * <li> gender: More accurately, sex; (MALE/FEMALE/NA) </li>
+ * <li> birthday: Date of birth; in the format yyyy-MM-dd </li>
+ * <li> height: Height; in the format X.XX, in the unit system that corresponds to the Accept-Language header provided ($locale parameter) </li>
+ * <li> strideLengthWalking: Walking stride length; in the format X.XX, in the unit system that corresponds to the Accept-Language header provided
+ * ($locale parameter) </li>
+ * <li> strideLengthRunning: Running stride length; in the format X.XX, in the unit system that corresponds to the Accept-Language header provided
+ * ($locale parameter) </li>
+ * </ul>
+ *
+ * <p> They have to be passed as $params in an array with each field as key having its correctly formatted value. </p>
+ *
+ * <p> API Reference: https://dev.fitbit.com/build/reference/web-api/user/#update-profile </p>
+ *
+ * <p> Possible error codes returned in FitbitResource: </p>
+ * <ul>
+ * <li>refresh_token_error: there was an error while refreshing the expired token.</li>
+ * <li>request_error: there was an error while obtaining the activity data, it could be related to a lack of WRITE permissions.</li>
+ * <li>unknown_error: the obtained data has changed its format or there was an uncaught error.</li>
+ * </ul>
+ *
+ * @param FitbitResource $resource
+ * @param array $params
+ * @param string $locale
+ * @return array
+ */
+function fitbitUpdateProfile(FitbitResource $resource, $params = [], $locale = 'es_ES') {
+    if (!empty($params)) {
+        $bodyParams = [];
+        if (!isNullOrEmpty($params["fullname"])) {
+            $bodyParams[] = "fullname=" . $params["fullname"];
+        }
+        if (!isNullOrEmpty($params["gender"])) {
+            $bodyParams[] = "gender=" . $params["gender"];
+        }
+        if (!isNullOrEmpty($params["birthday"])) {
+            $bodyParams[] = "birthday=" . $params["birthday"];
+        }
+        if (!isNullOrEmpty($params["height"])) {
+            $bodyParams[] = "height=" . $params["height"];
+        }
+        if (!isNullOrEmpty($params["strideLengthWalking"])) {
+            $bodyParams[] = "strideLengthWalking=" . $params["strideLengthWalking"];
+        }
+        if (!isNullOrEmpty($params["strideLengthRunning"])) {
+            $bodyParams[] = "strideLengthRunning=" . $params["strideLengthRunning"];
+        }
+        $paramsString = join("&", $bodyParams);
+    } else {
+        return [];
+    }
+
+    $accessToken = $resource->getAccessToken();
+    if (!$accessToken) {
+        return [];
+    }
+
+    try {
+        $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/profile.json';
+        // Update the user's FITBIT profile
+        $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_POST, $baseUrl, $accessToken,
+                ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale, 'Content-Type' => 'application/x-www-form-urlencoded'],
+                        'body' => $paramsString]);
+
+        $response = Fitbit::getProvider()->getParsedResponse($request);
+    } catch (Exception $e) {
+        // Failed to perform the request.
+        $resource->setErrorCode("request_error");
+        $resource->setErrorDescription($e->getMessage());
+    }
+
+    if ($response && $response['user']) {
+        return $response['user'];
+    } else {
+        if ($resource->getErrorCode() == null) {
+            $resource->setErrorCode('unknown_error');
+        }
+        if ($resource->getErrorDescription() == null) {
+            $resource->setErrorDescription("Some error happened when updating the user's profile.");
+        }
+        return [];
+    }
+}
+
+/**
+ * Update the the user's daily activity goals, the following fields are supported:
+ * <ul>
+ * <li> distance: Goal value; in the format X.XX or integer </li>
+ * <li> steps: Goal value; integer </li>
+ * </ul>
+ *
+ * <p> The Activity Goals to update can either be 'weekly' or 'daily', setting that can be specified at $period </p>
+ *
+ * <p> They have to be passed as $params in an array with each field as key having its correctly formatted value. </p>
+ *
+ * <p> API Reference: https://dev.fitbit.com/build/reference/web-api/activity/#activity-goals </p>
+ *
+ * <p> Possible error codes returned in FitbitResource: </p>
+ * <ul>
+ * <li>refresh_token_error: there was an error while refreshing the expired token.</li>
+ * <li>request_error: there was an error while obtaining the activity data, it could be related to a lack of WRITE permissions.</li>
+ * <li>unknown_error: the obtained data has changed its format or there was an uncaught error.</li>
+ * </ul>
+ *
+ * @param FitbitResource $resource
+ * @param array $params
+ * @param string $period
+ * @param string $locale
+ * @return array
+ */
+function fitbitUpdateActivityGoals(FitbitResource $resource, $params = [], $period = 'weekly', $locale = 'es_ES') {
+    if (!empty($params)) {
+        $bodyParams = [];
+        if (!isNullOrEmpty($params["distance"])) {
+            $bodyParams[] = "distance=" . $params["distance"];
+        }
+        if (!isNullOrEmpty($params["steps"])) {
+            $bodyParams[] = "steps=" . $params["steps"];
+        }
+        $paramsString = join("&", $bodyParams);
+    } else {
+        return [];
+    }
+
+    $accessToken = $resource->getAccessToken();
+    if (!$accessToken) {
+        return [];
+    }
+
+    try {
+        $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1/user/-/activities/goals/' . $period . '.json';
+        // Update the user's FITBIT profile
+        $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_POST, $baseUrl, $accessToken,
+                ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale, 'Content-Type' => 'application/x-www-form-urlencoded'],
+                        'body' => $paramsString]);
+
+        $response = Fitbit::getProvider()->getParsedResponse($request);
+    } catch (Exception $e) {
+        // Failed to perform the request.
+        $resource->setErrorCode("request_error");
+        $resource->setErrorDescription($e->getMessage());
+    }
+
+    if ($response && $response['goals']) {
+        return $response['goals'];
+    } else {
+        if ($resource->getErrorCode() == null) {
+            $resource->setErrorCode('unknown_error');
+        }
+        if ($resource->getErrorDescription() == null) {
+            $resource->setErrorDescription('Some error happened when updating the activity goals.');
+        }
+        return [];
+    }
+}
 ?>
