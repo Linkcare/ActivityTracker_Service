@@ -353,7 +353,7 @@ function insertCustomSteps($admissionId, $steps) {
  * @param FitbitResource $resource Fitbit object with the data we want to store at LC2
  * @return string
  */
-function storeAuthorizarionUrl(FitbitResource $resource) {
+function storeAuthorizarionUrl(FitbitResource $resource, $scope = null) {
     $query = [];
     $query[] = 'task=' . urlencode($resource->getTaskId());
     if ($resource->getErrorCode()) {
@@ -363,6 +363,9 @@ function storeAuthorizarionUrl(FitbitResource $resource) {
         $query[] = 'access_token=' . urlencode($resource->getToken());
         $query[] = 'refresh_token=' . urlencode($resource->getRefreshToken());
         $query[] = 'exp=' . urlencode($resource->getExpiration());
+        if ($scope != null) {
+            $query[] = 'scope=' . urlencode($scope);
+        }
     }
 
     $strQuery = implode('&', $query);

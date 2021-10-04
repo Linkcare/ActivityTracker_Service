@@ -29,7 +29,12 @@ if (isset($_GET['error']) && isset($_GET['error_description'])) {
             'expiration' => $accessToken->getExpires(), 'taskId' => $_GET['state']]);
 }
 
-$LC2redirect = storeAuthorizarionUrl($fitbitResource);
+if (isset($_GET['scope'])) {
+    $LC2redirect = storeAuthorizarionUrl($fitbitResource, $_GET['scope']);
+} else {
+    $LC2redirect = storeAuthorizarionUrl($fitbitResource);
+}
+
 header('Location: ' . $LC2redirect);
 exit();
 ?>
