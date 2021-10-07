@@ -41,8 +41,8 @@ class APIContact {
             $contact->age = NullableString($xmlNode->data->age);
             $contact->gender = NullableString($xmlNode->data->gender);
         }
+        $contact->fullName = NullableString($xmlNode->full_name);
         if ($xmlNode->name) {
-            $contact->fullName = NullableString($xmlNode->name->full_name);
             $contact->name = NullableString($xmlNode->name->given_name);
             $contact->middleName = NullableString($xmlNode->name->middleName);
             $contact->familyName = NullableString($xmlNode->name->family_name);
