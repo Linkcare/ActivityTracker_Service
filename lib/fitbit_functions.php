@@ -260,7 +260,7 @@ function fitbitUpdateProfile(FitbitResource $resource, $params = [], $locale = '
     if (!empty($params)) {
         $bodyParams = [];
         if (!isNullOrEmpty($params["fullname"])) {
-            $bodyParams[] = "fullname=" . $params["fullname"];
+            $bodyParams[] = "fullname=" . formatNameForFitbit($params["fullname"]);
         }
         if (!isNullOrEmpty($params["gender"])) {
             $bodyParams[] = "gender=" . $params["gender"];

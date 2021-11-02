@@ -74,7 +74,6 @@ function storeAuthorization($fbRes) {
         $patient = $api->case_get_contact($task->getCaseId());
         $profileInfo = [];
         if ($patient) {
-            $profileInfo['fullname'] = $patient->getFullName();
             switch ($patient->getGender()) {
                 case 'M' :
                     $profileInfo['gender'] = 'MALE';
@@ -84,6 +83,15 @@ function storeAuthorization($fbRes) {
                     break;
             }
             $profileInfo['birthday'] = $patient->getBirthdate();
+            $participantRef = $patient->findIdentifier('PARTICIPANT_REF');
+            if ($participantRef) {
+                /*
+                 * The name assigned to the patient will be composed by a generic name (e.g. "Mafipar") and the PARTICIPANT_REF IDENTIFIER
+                 */
+                $profileInfo['fullname'] = $GLOBALS['FITBIT_DEFAULT_NAME'] . ' ' . explode('@', $participantRef->getValue())[0];
+            } else {
+                $profileInfo['fullname'] = $GLOBALS['FITBIT_DEFAULT_NAME'];
+            }
         }
 
         if ($patientDataForm) {
@@ -596,4 +604,27 @@ function loadFitbitCredentials($admissionId) {
     }
 
     return $resource;
+}
+
+/**
+ * The Fullname stored in Fitbit paltform can't have number or special characters.
+ * This function replaces numbers 0-9 by the characters 'A-J', and special characters by spaces
+ */
+function formatNameForFitbit($txt) {
+    $txt = trim($txt);
+    if (!$txt) {
+        return $txt;
+    }
+
+    $txt = str_replace(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], $txt);
+    $final = '';
+    foreach (str_split_multibyte($txt) as $char) {
+        if (!preg_match('/\p{L}/', $char)) {
+            $final = trim($final) . ' ';
+        } else {
+            $final = $final . $char;
+        }
+    }
+
+    return trim($final);
 }
