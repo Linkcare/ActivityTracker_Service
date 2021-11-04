@@ -123,6 +123,12 @@ class APIForm {
      * @return APIQuestion[]
      */
     public function getQuestions() {
+        if ($this->questions === null) {
+            $this->questions = [];
+            $f = $this->api->form_get_summary($this->id, true);
+            $this->questions = $f->getQuestions();
+        }
+
         return $this->questions ?? [];
     }
 
@@ -146,11 +152,7 @@ class APIForm {
      * @return APIQuestion
      */
     public function findQuestion($questionId) {
-        if ($this->questions === null) {
-            $f = $this->api->form_get_summary($this->id, true);
-            $this->questions = $f->getQuestions();
-        }
-        foreach ($this->questions as $q) {
+        foreach ($this->getQuestions() as $q) {
             if ($q->getQuestionTemplateId() == $questionId || $q->getItemCode() == $questionId) {
                 return $q;
             }
@@ -167,13 +169,8 @@ class APIForm {
      * @return APIQuestion
      */
     public function findArrayQuestion($arrayRef, $row, $questionId) {
-        if ($this->questions === null) {
-            $f = $this->api->form_get_summary($this->id, true);
-            $this->questions = $f->getQuestions();
-        }
-
         $referenceQuestion = null;
-        foreach ($this->questions as $q) {
+        foreach ($this->getQuestions() as $q) {
             if ($arrayRef != $q->getArrayRef()) {
                 continue;
             }

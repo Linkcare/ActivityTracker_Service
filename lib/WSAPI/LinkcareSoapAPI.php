@@ -579,7 +579,7 @@ class LinkcareSoapAPI {
         $arrayQuestions = [];
         foreach ($questions as $q) {
             if ($q->getRow()) {
-                $arrayQuestions[$q->getOrder()][$q->getRow()][$q->getQuestionTemplateId()] = $q;
+                $arrayQuestions[$q->getOrder()][$q->getRow()][] = $q;
             } else {
                 $simpleQuestions[] = $q;
             }

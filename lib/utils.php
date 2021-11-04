@@ -164,7 +164,7 @@ function setSystemTimeZone() {
 /**
  * Calculates the current date in the specified timezone
  *
- * @param number $timezone
+ * @param string|number $timezone
  * @return string
  */
 function currentDate($timezone = null) {
