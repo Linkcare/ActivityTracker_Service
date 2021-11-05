@@ -341,10 +341,11 @@ function insertCustomSteps($admissionId, $steps) {
             continue;
         }
         log_trace("Steps in $date: $value", 1);
+        $partialSteps = [['time' => '09:00', 'value' => $value]];
         if (array_key_exists($date, $existingSteps)) {
-            updateStepsTask($existingSteps[$date], $value, $date);
+            updateStepsTask($existingSteps[$date], $value, $date, $partialSteps);
         } else {
-            createStepsTask($admissionId, $value, $date);
+            createStepsTask($admissionId, $value, $date, $partialSteps);
         }
     }
 
