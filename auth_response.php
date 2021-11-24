@@ -8,6 +8,7 @@ if (!isset($_GET['state'])) {
     exit('Missing "state" field.');
 }
 
+$scope = null;
 if (isset($_GET['error']) && isset($_GET['error_description'])) {
     // An error has ocurred while getting the Fitbit permission.
     $fitbitResource = new FitbitResource(['errorCode' => $_GET['error'], 'errorDescription' => $_GET['error_description'], 'taskId' => $_GET['state']]);
@@ -27,13 +28,12 @@ if (isset($_GET['error']) && isset($_GET['error_description'])) {
 
     $fitbitResource = new FitbitResource(['access_token' => $accessToken->getToken(), 'refresh_token' => $accessToken->getRefreshToken(),
             'expiration' => $accessToken->getExpires(), 'taskId' => $_GET['state']]);
+
+    $additionalValues = $accessToken->getValues();
+    $scope = is_array($additionalValues) ? $additionalValues['scope'] : null;
 }
 
-if (isset($_GET['scope'])) {
-    $LC2redirect = storeAuthorizarionUrl($fitbitResource, $_GET['scope']);
-} else {
-    $LC2redirect = storeAuthorizarionUrl($fitbitResource);
-}
+$LC2redirect = storeAuthorizationUrl($fitbitResource, $scope);
 
 header('Location: ' . $LC2redirect);
 exit();

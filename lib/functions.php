@@ -8,10 +8,22 @@
  * Request the activity of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
  *
  * @param FitbitResource $fbRes
+ * @param string $grantedScopes A space separated list of scopes for which authorization has been granted
  * @return LC2Action
  */
-function storeAuthorization($fbRes) {
+function storeAuthorization($fbRes, $grantedScopes = null) {
     $api = LinkcareSoapAPI::getInstance();
+
+    $deniedScopes = [];
+    if ($grantedScopes) {
+        $grantedScopes = explode(' ', $grantedScopes);
+        // Check if authorization was granted for all requested scopes
+        foreach ($GLOBALS['FITBIT_SCOPES_REQUESTED'] as $scope) {
+            if (!in_array($scope, $grantedScopes)) {
+                $deniedScopes[] = $scope;
+            }
+        }
+    }
 
     $task = $api->task_get($fbRes->getTaskId());
     $activityList = $api->task_activity_list($task->getId());
@@ -64,6 +76,16 @@ function storeAuthorization($fbRes) {
         }
         if ($q = $authForm->findQuestion('ERROR_DESCRIPTION')) {
             $q->setValue($fbRes->getErrorDescription());
+            $arrQuestions[] = $q;
+        }
+        if (!empty($grantedScopes) && ($q = $authForm->findQuestion('GRANTED_SCOPES'))) {
+            // Store granted scope as a list of comma separated scopes
+            $q->setValue(implode(',', $grantedScopes));
+            $arrQuestions[] = $q;
+        }
+        if (!empty($deniedScopes) && ($q = $authForm->findQuestion('DENIED_SCOPES'))) {
+            // Store granted scope as a list of comma separated scopes
+            $q->setValue(implode(',', $deniedScopes));
             $arrQuestions[] = $q;
         }
         $api->form_set_all_answers($authForm->getId(), $arrQuestions, false);
@@ -362,7 +384,7 @@ function insertCustomSteps($admissionId, $steps) {
  * @param FitbitResource $resource Fitbit object with the data we want to store at LC2
  * @return string
  */
-function storeAuthorizarionUrl(FitbitResource $resource, $scope = null) {
+function storeAuthorizationUrl(FitbitResource $resource, $scope = null) {
     $query = [];
     $query[] = 'task=' . urlencode($resource->getTaskId());
     if ($resource->getErrorCode()) {

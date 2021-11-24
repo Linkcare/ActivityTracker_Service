@@ -27,6 +27,8 @@ $GLOBALS['SERVICE_TEAM'] = 'LINKCARE';
 $GLOBALS['FITBIT_CLIENT_ID'] = 'client_key';
 $GLOBALS['FITBIT_CLIENT_SECRET'] = 'client_secret';
 $GLOBALS['FITBIT_REDIRECT_URI'] = 'redirect_uri';
+// Scopes requested to the user in the OAuth authorization procedure
+$GLOBALS['FITBIT_SCOPES_REQUESTED'] = ['activity', 'settings', 'profile'];
 
 // Default name assigned to a patient in Fitbit. This is used to store an anonymous name and preserve privacy
 $GLOBALS['FITBIT_DEFAULT_NAME'] = 'Default Name';

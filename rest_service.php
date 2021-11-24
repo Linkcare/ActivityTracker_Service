@@ -33,8 +33,10 @@ try {
             $options['expiration'] = $_POST["exp"];
             log_trace("AUTHORIZATION RESPONSE: " . json_encode($options));
 
+            $scope = $_POST["scope"];
+
             $r = new FitbitResource($options);
-            $lc2Action = storeAuthorization($r);
+            $lc2Action = storeAuthorization($r, $scope);
             break;
     }
 } catch (APIException $e) {
