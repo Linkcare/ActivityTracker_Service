@@ -93,26 +93,28 @@ function storeAuthorization($fbRes, $grantedScopes = null) {
 
     // Update user profile information in Fitbit
     if (!$fbRes->getErrorCode()) {
-        $patient = $api->case_get_contact($task->getCaseId());
-        $profileInfo = [];
-        if ($patient) {
-            switch ($patient->getGender()) {
-                case 'M' :
-                    $profileInfo['gender'] = 'MALE';
-                    break;
-                case 'F' :
-                    $profileInfo['gender'] = 'FEMALE';
-                    break;
-            }
-            $profileInfo['birthday'] = $patient->getBirthdate();
-            $participantRef = $patient->findIdentifier('PARTICIPANT_REF');
-            if ($participantRef) {
-                /*
-                 * The name assigned to the patient will be composed by a generic name (e.g. "Mafipar") and the PARTICIPANT_REF IDENTIFIER
-                 */
-                $profileInfo['fullname'] = $GLOBALS['FITBIT_DEFAULT_NAME'] . ' ' . explode('@', $participantRef->getValue())[0];
-            } else {
-                $profileInfo['fullname'] = $GLOBALS['FITBIT_DEFAULT_NAME'];
+        if ($GLOBALS['FITBIT_UPDATE_PERSONAL_DATA']) {
+            $patient = $api->case_get_contact($task->getCaseId());
+            $profileInfo = [];
+            if ($patient) {
+                switch ($patient->getGender()) {
+                    case 'M' :
+                        $profileInfo['gender'] = 'MALE';
+                        break;
+                    case 'F' :
+                        $profileInfo['gender'] = 'FEMALE';
+                        break;
+                }
+                $profileInfo['birthday'] = $patient->getBirthdate();
+                $participantRef = $patient->findIdentifier('PARTICIPANT_REF');
+                if ($participantRef) {
+                    /*
+                     * The name assigned to the patient will be composed by a generic name (e.g. "Mafipar") and the PARTICIPANT_REF IDENTIFIER
+                     */
+                    $profileInfo['fullname'] = $GLOBALS['FITBIT_DEFAULT_NAME'] . ' ' . explode('@', $participantRef->getValue())[0];
+                } else {
+                    $profileInfo['fullname'] = $GLOBALS['FITBIT_DEFAULT_NAME'];
+                }
             }
         }
 

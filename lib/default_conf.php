@@ -31,6 +31,7 @@ $GLOBALS['FITBIT_REDIRECT_URI'] = 'redirect_uri';
 $GLOBALS['FITBIT_SCOPES_REQUESTED'] = ['activity', 'settings', 'profile'];
 
 // Default name assigned to a patient in Fitbit. This is used to store an anonymous name and preserve privacy
+$GLOBALS['FITBIT_UPDATE_PERSONAL_DATA'] = false;
 $GLOBALS['FITBIT_DEFAULT_NAME'] = 'Default Name';
 
 // Load particular configuration
