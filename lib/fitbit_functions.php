@@ -155,6 +155,117 @@ function getDetailedActivity(FitbitResource $resource, $date, $breakdownPeriod, 
 }
 
 /**
+ * Obtain sleep data for a range of days or a specific day.
+ * The returned data will have the following format:
+ * <ul>
+ * <li> [{
+ * <ul>
+ * <li>"summary": {"start_time": "2022-03-15 00:05:00", "end_time": "2022-03-16 06:00:00", "duration": 21300} },</li>
+ * <li>"detail" : [
+ * <ul>
+ * <li>{"start_time": "2022-03-15 00:05:00","end_time": "2022-03-16 01:00:00","duration": 3300,"level": "light"},</li>
+ * <li>{"start_time": "2022-03-15 01:00:00","end_time": "2022-03-16 05:30:00","duration": 16200,"level": "deep"},</li>
+ * <li>{...},</li>
+ * <li>{...}]</li>
+ * </ul>
+ * </li>
+ * </ul>
+ * },</li>
+ * <li>{...},</li>
+ * <li>{...}]</li>
+ * </ul>
+ *
+ * If no startDate is given, the endDate will be the asked day, using the call for only one Date instead of a Date Range.
+ *
+ * Possible error codes returned in FitbitResource:
+ * <ul>
+ * <li>refresh_token_error: there was an error while refreshing the expired token.</li>
+ * <li>request_error: there was an error while obtaining the sleep data.</li>
+ * <li>unknown_error: the obtained data has changed its format or there was an uncaught error.</li>
+ * </ul>
+ *
+ * @param FitbitResource $resource
+ * @param string $startDate
+ * @param string $endDate
+ * @param string $locale
+ * @return array
+ */
+function getSleepData(FitbitResource $resource, $startDate, $endDate, $locale = 'es_ES') {
+    if (!$endDate) {
+        return [];
+    }
+
+    if (!$startDate) {
+        $date = $endDate;
+    }
+
+    $accessToken = $resource->getAccessToken();
+    if (!$accessToken) {
+        return [];
+    }
+
+    try {
+        // Obtain the sleep data from FITBIT
+        if ($date != null) {
+            $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1.2/user/-/sleep/date/' . $date . '.json';
+        } else {
+            $baseUrl = Fitbit::BASE_FITBIT_API_URL . '/1.2/user/-/sleep/date/' . $startDate . '/' . $endDate . '.json';
+        }
+        $request = Fitbit::getProvider()->getAuthenticatedRequest(Fitbit::METHOD_GET, $baseUrl, $accessToken,
+                ['headers' => [Fitbit::HEADER_ACCEPT_LOCALE => $locale]]);
+
+        $response = Fitbit::getProvider()->getParsedResponse($request);
+    } catch (Exception $e) {
+        // Failed to perform the request.
+        $resource->setErrorCode("request_error");
+        $resource->setErrorDescription($e->getMessage());
+    }
+
+    if (!$response || !$response['sleep']) {
+        if ($resource->getErrorCode() == null) {
+            $resource->setErrorCode('unknown_error');
+        }
+        if ($resource->getErrorDescription() == null) {
+            $resource->setErrorDescription('Some error happened when requesting activity information.');
+        }
+        return [];
+    }
+
+    // Prepare the formatted response
+    $formattedResponse = [];
+
+    foreach ($response['sleep'] as $sleep) {
+        $formattedDay = [];
+        $formattedData = [];
+        $index = 0;
+
+        $formattedDay['summary']['start_time'] = $sleep['startTime'];
+        $formattedDay['summary']['end_time'] = $sleep['endTime'];
+        // The duration is given in milliseconds
+        $formattedDay['summary']['duration'] = $sleep['duration'] / 1000;
+
+        foreach ($sleep['levels']['data'] as $data) {
+            $formattedData['level'] = $sleep['level'];
+            $formattedData['duration'] = $sleep['seconds'];
+            $formattedData['start_time'] = $data['dateTime'];
+            // The end date is the following series dateTime or the day's endTime
+            if (isset($sleep['levels']['data'][$index + 1])) {
+                $formattedData['end_time'] = $sleep['levels']['data'][$index + 1]['dateTime'];
+            } else {
+                $formattedData['end_time'] = $sleep['endTime'];
+            }
+
+            $formattedResponse['detail'][] = $formattedData;
+            $index++;
+        }
+
+        $formattedResponse[] = $formattedDay;
+    }
+
+    return $formattedResponse;
+}
+
+/**
  * Obtain a list of devices for the user with its data, which includes 'lastSyncTime'.
  * Returned data is breakdown for each device. It will have the following format:
  * <ul>
