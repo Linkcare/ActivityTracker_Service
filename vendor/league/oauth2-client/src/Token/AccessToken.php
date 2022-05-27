@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of the league/oauth2-client library
  *
@@ -11,7 +12,6 @@
  * @link https://packagist.org/packages/league/oauth2-client Packagist
  * @link https://github.com/thephpleague/oauth2-client GitHub
  */
-
 namespace League\OAuth2\Client\Token;
 
 use InvalidArgumentException;
@@ -22,46 +22,51 @@ use RuntimeException;
  *
  * @link http://tools.ietf.org/html/rfc6749#section-1.4 Access Token (RFC 6749, §1.4)
  */
-class AccessToken implements AccessTokenInterface, ResourceOwnerAccessTokenInterface
-{
+class AccessToken implements AccessTokenInterface, ResourceOwnerAccessTokenInterface {
     /**
+     *
      * @var string
      */
     protected $accessToken;
 
     /**
+     *
      * @var int
      */
     protected $expires;
 
     /**
+     *
      * @var string
      */
     protected $refreshToken;
 
     /**
+     *
      * @var string
      */
     protected $resourceOwnerId;
 
     /**
+     *
      * @var array
      */
     protected $values = [];
 
     /**
+     *
      * @var int
      */
     private static $timeNow;
 
     /**
-     * Set the time now. This should only be used for testing purposes.
+     * Set the time now.
+     * This should only be used for testing purposes.
      *
      * @param int $timeNow the time in seconds since epoch
      * @return void
      */
-    public static function setTimeNow($timeNow)
-    {
+    public static function setTimeNow($timeNow) {
         self::$timeNow = $timeNow;
     }
 
@@ -70,16 +75,15 @@ class AccessToken implements AccessTokenInterface, ResourceOwnerAccessTokenInter
      *
      * @return void
      */
-    public static function resetTimeNow()
-    {
+    public static function resetTimeNow() {
         self::$timeNow = null;
     }
 
     /**
+     *
      * @return int
      */
-    public function getTimeNow()
-    {
+    public function getTimeNow() {
         return self::$timeNow ? self::$timeNow : time();
     }
 
@@ -87,11 +91,10 @@ class AccessToken implements AccessTokenInterface, ResourceOwnerAccessTokenInter
      * Constructs an access token.
      *
      * @param array $options An array of options returned by the service provider
-     *     in the access token request. The `access_token` option is required.
+     *        in the access token request. The `access_token` option is required.
      * @throws InvalidArgumentException if `access_token` is not provided in `$options`.
      */
-    public function __construct(array $options = [])
-    {
+    public function __construct(array $options = []) {
         if (empty($options['access_token'])) {
             throw new InvalidArgumentException('Required option not passed: "access_token"');
         }
@@ -130,13 +133,7 @@ class AccessToken implements AccessTokenInterface, ResourceOwnerAccessTokenInter
         // Capture any additional values that might exist in the token but are
         // not part of the standard response. Vendors will sometimes pass
         // additional user data this way.
-        $this->values = array_diff_key($options, array_flip([
-            'access_token',
-            'resource_owner_id',
-            'refresh_token',
-            'expires_in',
-            'expires',
-        ]));
+        $this->values = array_diff_key($options, array_flip(['access_token', 'resource_owner_id', 'refresh_token', 'expires_in', 'expires']));
     }
 
     /**
@@ -145,8 +142,7 @@ class AccessToken implements AccessTokenInterface, ResourceOwnerAccessTokenInter
      * @param integer $value
      * @return bool
      */
-    protected function isExpirationTimestamp($value)
-    {
+    protected function isExpirationTimestamp($value) {
         // If the given value is larger than the original OAuth 2 draft date,
         // assume that it is meant to be a (possible expired) timestamp.
         $oauth2InceptionDate = 1349067600; // 2012-10-01
@@ -154,42 +150,42 @@ class AccessToken implements AccessTokenInterface, ResourceOwnerAccessTokenInter
     }
 
     /**
+     *
      * @inheritdoc
      */
-    public function getToken()
-    {
+    public function getToken() {
         return $this->accessToken;
     }
 
     /**
+     *
      * @inheritdoc
      */
-    public function getRefreshToken()
-    {
+    public function getRefreshToken() {
         return $this->refreshToken;
     }
 
     /**
+     *
      * @inheritdoc
      */
-    public function getExpires()
-    {
+    public function getExpires() {
         return $this->expires;
     }
 
     /**
+     *
      * @inheritdoc
      */
-    public function getResourceOwnerId()
-    {
+    public function getResourceOwnerId() {
         return $this->resourceOwnerId;
     }
 
     /**
+     *
      * @inheritdoc
      */
-    public function hasExpired()
-    {
+    public function hasExpired() {
         $expires = $this->getExpires();
 
         if (empty($expires)) {
@@ -200,26 +196,26 @@ class AccessToken implements AccessTokenInterface, ResourceOwnerAccessTokenInter
     }
 
     /**
+     *
      * @inheritdoc
      */
-    public function getValues()
-    {
+    public function getValues() {
         return $this->values;
     }
 
     /**
+     *
      * @inheritdoc
      */
-    public function __toString()
-    {
+    public function __toString() {
         return (string) $this->getToken();
     }
 
     /**
+     *
      * @inheritdoc
      */
-    public function jsonSerialize()
-    {
+    public function jsonSerialize() {
         $parameters = $this->values;
 
         if ($this->accessToken) {

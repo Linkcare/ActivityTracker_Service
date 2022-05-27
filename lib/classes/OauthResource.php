@@ -1,9 +1,9 @@
 <?php
-use FitbitOAuth2Client\Fitbit;
 use League\OAuth2\Client\Token\AccessToken;
 use function GuzzleHttp\json_decode;
+use League\OAuth2\Client\Provider\AbstractProvider;
 
-class FitbitResource {
+class OauthResource {
     /**  @var string */
     protected $token;
 
@@ -12,6 +12,9 @@ class FitbitResource {
 
     /** @var int */
     protected $expiration;
+
+    /** @var int */
+    protected $expires_in;
 
     /** @var string */
     protected $errorCode;
@@ -32,12 +35,13 @@ class FitbitResource {
     private $accessToken = null;
 
     /**
-     * Constructs the Fitbit Resource object with the tokens and different data.
+     * Constructs the Oauth Resource object with the tokens and different data.
      *
      * @param array $options An array of parameters to create the object.
+     * @param AbstractProvider $provider
      * @throws InvalidArgumentException if 'expiration' is a string.
      */
-    public function __construct(array $options = []) {
+    public function __construct(array $options = [], IActivityProvider $provider) {
         if (!empty($options['access_token'])) {
             $this->token = $options['access_token'];
         }
@@ -65,12 +69,11 @@ class FitbitResource {
         }
 
         if ($this->token && $this->refreshToken && $this->expiration && !$this->errorCode && !$this->errorDescription) {
-            $accessToken = new AccessToken(['access_token' => $this->token, 'refresh_token' => $this->refreshToken,
-                    'expires_in' => ($this->expiration - time())]);
+            $accessToken = new AccessToken(['access_token' => $this->token, 'refresh_token' => $this->refreshToken, 'expires' => $this->expiration]);
 
             if ($accessToken->hasExpired()) {
                 try {
-                    $accessToken = Fitbit::getProvider()->getAccessToken('refresh_token', ['refresh_token' => $this->getRefreshToken()]);
+                    $accessToken = $provider->getAccessToken('refresh_token', ['refresh_token' => $this->getRefreshToken()]);
                     $this->setAccessToken($accessToken->getToken());
                     $this->setRefreshToken($accessToken->getRefreshToken());
                     $this->setExpiration($accessToken->getExpires());

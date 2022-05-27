@@ -7,7 +7,7 @@
 /**
  * Request the activity of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
  *
- * @param FitbitResource $fbRes
+ * @param OauthResource $fbRes
  * @param string $grantedScopes A space separated list of scopes for which authorization has been granted
  * @return LC2Action
  */
@@ -127,7 +127,7 @@ function storeAuthorization($fbRes, $grantedScopes = null) {
             }
         }
 
-        fitbitUpdateProfile($fbRes, $profileInfo);
+        ActivityProvider::getInstance()->updateProfile($fbRes, $profileInfo);
     }
 
     $lc2Action = new LC2Action(LC2Action::ACTION_REDIRECT_TO_TASK);
@@ -156,7 +156,7 @@ function updatePatientActivity($taskId, $toDate) {
 
     log_trace("UPDATE PATIENT ACTIVITY. Date: $toDate,  Admission: $admissionId");
 
-    $fitbitCredentials = loadFitbitCredentials($admissionId);
+    $fitbitCredentials = loadOauthCredentials($admissionId);
 
     if (!$fitbitCredentials->isValid()) {
         log_trace('ERROR! Invalid Fitbit credentials: ' . $fitbitCredentials->getErrorDescription(), 1);
@@ -188,7 +188,7 @@ function updatePatientActivity($taskId, $toDate) {
         $lastReportedDate = explode(' ', $lastReportedDate)[0];
     }
     // Request activity data to Fitbit
-    $steps = getActivityData($fitbitCredentials, $lastReportedDate, $toDate);
+    $steps = ActivityProvider::getInstance()->getActivityData($fitbitCredentials, $lastReportedDate, $toDate);
     if ($fitbitCredentials->getErrorCode()) {
         log_trace("ERROR! Fitbit returned: " . $fitbitCredentials->getErrorDescription(), 1);
         return ['ErrorMsg' => $fitbitCredentials->getErrorDescription()];
@@ -210,7 +210,7 @@ function updatePatientActivity($taskId, $toDate) {
             continue;
         }
         log_trace("Steps in $date: $value", 2);
-        $partialSteps = getDetailedActivity($fitbitCredentials, $date, '15min');
+        $partialSteps = ActivityProvider::getInstance()->getDetailedActivity($fitbitCredentials, $date, '15min');
         if ($lastReportedTask && $lastReportedTask->getDate() == $date) {
             updateStepsTask($lastReportedTask, $value, $date, $partialSteps);
         } else {
@@ -232,10 +232,10 @@ function checkSyncStatus($taskId) {
 
     log_trace("Checking sync status. Task: " . $task->getId() . ", Date:" . $task->getDate() . ", Patient: " . $task->getCaseId());
 
-    $fitbitCredentials = loadFitbitCredentials($task->getAdmissionId());
-    if (!$fitbitCredentials->isValid()) {
-        log_trace('ERROR! Invalid Fitbit credentials: ' . $fitbitCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription(), 'ErrorCode' => $fitbitCredentials->getErrorCode()];
+    $oauthCredentials = loadOauthCredentials($task->getAdmissionId());
+    if (!$oauthCredentials->isValid()) {
+        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthCredentials->getErrorDescription(), 'ErrorCode' => $oauthCredentials->getErrorCode()];
     }
 
     $syncStatusForm = $task->findForm($GLOBALS['FORM_CODES']['SYNC_STATUS']);
@@ -245,10 +245,10 @@ function checkSyncStatus($taskId) {
         throw new APIException("FORM.NOT_FOUND", $errorMsg);
     }
 
-    $devData = getDeviceData($fitbitCredentials);
-    if ($fitbitCredentials->getErrorCode()) {
-        log_trace("ERROR! Fitbit returned: " . $fitbitCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription()];
+    $devData = ActivityProvider::getInstance()->getDeviceData($oauthCredentials);
+    if ($oauthCredentials->getErrorCode()) {
+        log_trace("ERROR! Fitbit returned: " . $oauthCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthCredentials->getErrorDescription()];
     }
 
     $lastSyncTime = '';
@@ -290,16 +290,16 @@ function setDeviceUserProfile($admissionId, $profileData) {
     if (empty($profileData)) {
         return ['result' => 1, 'ErrorMsg' => '', 'ErrorCode' => ''];
     }
-    $fitbitCredentials = loadFitbitCredentials($admissionId);
-    if (!$fitbitCredentials->isValid()) {
-        log_trace('ERROR! Invalid Fitbit credentials: ' . $fitbitCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription(), 'ErrorCode' => $fitbitCredentials->getErrorCode()];
+    $oauthCredentials = loadOauthCredentials($admissionId);
+    if (!$oauthCredentials->isValid()) {
+        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthCredentials->getErrorDescription(), 'ErrorCode' => $oauthCredentials->getErrorCode()];
     }
 
-    fitbitUpdateProfile($fitbitCredentials, $profileData);
-    if ($fitbitCredentials->getErrorCode()) {
-        log_trace("ERROR! Fitbit returned: " . $fitbitCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription()];
+    ActivityProvider::getInstance()->updateProfile($oauthCredentials, $profileData);
+    if ($oauthCredentials->getErrorCode()) {
+        log_trace("ERROR! Fitbit returned: " . $oauthCredentials->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthCredentials->getErrorDescription()];
     }
 
     return ['result' => 1, 'ErrorMsg' => '', 'ErrorCode' => ''];
@@ -383,10 +383,10 @@ function insertCustomSteps($admissionId, $steps) {
  * Generates the URL to redirect to LC2 after receiving the authorization information from Fitbit.
  * This URL informs LC2 that it must invoke a service to store the authorization in the appropriate ADMISSION
  *
- * @param FitbitResource $resource Fitbit object with the data we want to store at LC2
+ * @param OauthResource $resource Fitbit object with the data we want to store at LC2
  * @return string
  */
-function storeAuthorizationUrl(FitbitResource $resource, $scope = null) {
+function storeAuthorizationUrl(OauthResource $resource, $scope = null) {
     $query = [];
     $query[] = 'task=' . urlencode($resource->getTaskId());
     if ($resource->getErrorCode()) {
@@ -542,9 +542,9 @@ function updateStepsTask($task, $stepsNumber, $date, $partialSteps = null) {
 /**
  *
  * @param string $admissionId
- * @return FitbitResource
+ * @return OauthResource
  */
-function loadFitbitCredentials($admissionId) {
+function loadOauthCredentials($admissionId) {
     $api = LinkcareSoapAPI::getInstance();
 
     // Get Fitbit OAuth credentials from the most recent autentication TASK
@@ -570,7 +570,7 @@ function loadFitbitCredentials($admissionId) {
     if (!$credentialsForm) {
         $options['errorCode'] = 'AUTHORIZATION_MISSING';
         $options['errorDescription'] = 'Fitbit credentials not found in this ADMISSION';
-        return new FitbitResource($options);
+        return new OauthResource($options);
     }
 
     $options = [];
@@ -586,7 +586,7 @@ function loadFitbitCredentials($admissionId) {
         }
     }
 
-    $resource = new FitbitResource($options);
+    $resource = new OauthResource($options);
     if (!$resource->isValid()) {
         return $resource;
     }

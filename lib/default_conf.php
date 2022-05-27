@@ -4,11 +4,12 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once ("utils.php");
 require_once ("WSAPI/WSAPI.php");
 require_once ("FitbitAPI/FitbitAPI.php");
+require_once ("HuaweiAPI/HuaweiAPI.php");
 require_once "classes/LC2Action.php";
-require_once "classes/FitbitResource.php";
+require_once "classes/OauthResource.php";
 require_once "functions.php";
 require_once "goal_functions.php";
-require_once "fitbit_functions.php";
+require_once "classes/ActivityProvider.php";
 
 $GLOBALS["LANG"] = "EN";
 $GLOBALS["DEFAULT_TIMEZONE"] = "Europe/Madrid";

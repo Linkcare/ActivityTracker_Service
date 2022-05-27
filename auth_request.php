@@ -1,13 +1,16 @@
 <?php
 require_once 'lib/default_conf.php';
 
-use FitbitOAuth2Client\Fitbit;
-
 if (isset($_GET['task'])) {
-    $authorizationUrl = Fitbit::getProvider()->getAuthorizationUrl(['state' => $_GET['task'], 'scope' => $GLOBALS['FITBIT_SCOPES_REQUESTED']]);
+    if (isset($_GET['service'])) {
+        $service = $_GET['service'];
 
-    // The prompt = 'login' parameter will force at the Fitbit side to log in
-    header('Location: ' . $authorizationUrl . '&prompt=login');
+        $provider = ActivityProvider::getInstance($service);
+
+        // The prompt = 'login' parameter will force at the Fitbit side to log in
+        $state = $_GET['task'] . '/' . $service;
+        header('Location: ' . $provider->getAuthorizationUrl($state));
+    }
     exit();
 }
 ?>
