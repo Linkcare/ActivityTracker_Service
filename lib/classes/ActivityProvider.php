@@ -9,6 +9,7 @@ class ActivityProvider {
 
     /**
      *
+     * @param string $service
      * @return IActivityProvider
      */
     static public function getInstance($service) {
@@ -20,7 +21,7 @@ class ActivityProvider {
         }
 
         // default
-        return new HuaweiProvider();
+        return new FitbitProvider();
     }
 }
 ?>

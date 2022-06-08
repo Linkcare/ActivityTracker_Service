@@ -11,6 +11,10 @@ if (!isset($_GET['state'])) {
 }
 
 $scope = null;
+if (!$service) {
+    $service = $GLOBALS['DEFAULT_ACTIVITY_PROVIDER'];
+}
+
 $provider = ActivityProvider::getInstance($service);
 if (isset($_GET['error']) && isset($_GET['error_description'])) {
     // An error has ocurred while getting the Fitbit permission.

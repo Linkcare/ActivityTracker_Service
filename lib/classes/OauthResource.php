@@ -34,6 +34,9 @@ class OauthResource {
     /** @var AccessToken */
     private $accessToken = null;
 
+    /** @var IActivityProvider */
+    private $provider;
+
     /**
      * Constructs the Oauth Resource object with the tokens and different data.
      *
@@ -42,6 +45,8 @@ class OauthResource {
      * @throws InvalidArgumentException if 'expiration' is a string.
      */
     public function __construct(array $options = [], IActivityProvider $provider) {
+        $this->provider = $provider;
+
         if (!empty($options['access_token'])) {
             $this->token = $options['access_token'];
         }
@@ -93,6 +98,14 @@ class OauthResource {
      * GETTERS
      * **********************************
      */
+
+    /**
+     *
+     * @return IActivityProvider
+     */
+    public function getProvider() {
+        return $this->provider;
+    }
 
     /**
      *

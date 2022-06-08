@@ -24,6 +24,8 @@ $GLOBALS['SERVICE_USER'] = 'service';
 $GLOBALS['SERVICE_PASSWORD'] = 'password';
 $GLOBALS['SERVICE_TEAM'] = 'LINKCARE';
 
+$GLOBALS['DEFAULT_ACTIVITY_PROVIDER'] = ActivityProvider::PROVIDER_FITBIT;
+
 // Fitbit credentials
 $GLOBALS['FITBIT_CLIENT_ID'] = 'client_key';
 $GLOBALS['FITBIT_CLIENT_SECRET'] = 'client_secret';
@@ -32,8 +34,8 @@ $GLOBALS['FITBIT_REDIRECT_URI'] = 'redirect_uri';
 $GLOBALS['FITBIT_SCOPES_REQUESTED'] = ['activity', 'settings', 'profile'];
 
 // Default name assigned to a patient in Fitbit. This is used to store an anonymous name and preserve privacy
-$GLOBALS['FITBIT_UPDATE_PERSONAL_DATA'] = false;
-$GLOBALS['FITBIT_DEFAULT_NAME'] = 'Default Name';
+$GLOBALS['UPDATE_PERSONAL_DATA'] = false;
+$GLOBALS['DEFAULT_PROFILE_NAME'] = 'Default Name';
 
 // Load particular configuration
 if (file_exists(__DIR__ . '/../conf/configuration.php')) {

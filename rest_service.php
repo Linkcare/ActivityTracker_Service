@@ -35,7 +35,8 @@ try {
 
             $scope = $_POST["scope"];
 
-            $r = new FitbitResource($options);
+            $provider = ActivityProvider::getInstance(ActivityProvider::PROVIDER_FITBIT);
+            $r = new OauthResource($options, $provider);
             $lc2Action = storeAuthorization($r, $scope);
             break;
     }

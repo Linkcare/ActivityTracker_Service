@@ -7,11 +7,11 @@
 /**
  * Request the activity of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
  *
- * @param OauthResource $fbRes
+ * @param OauthResource $oauthResource
  * @param string $grantedScopes A space separated list of scopes for which authorization has been granted
  * @return LC2Action
  */
-function storeAuthorization($fbRes, $grantedScopes = null) {
+function storeAuthorization($oauthResource, $grantedScopes = null) {
     $api = LinkcareSoapAPI::getInstance();
 
     $deniedScopes = [];
@@ -25,7 +25,7 @@ function storeAuthorization($fbRes, $grantedScopes = null) {
         }
     }
 
-    $task = $api->task_get($fbRes->getTaskId());
+    $task = $api->task_get($oauthResource->getTaskId());
     $activityList = $api->task_activity_list($task->getId());
 
     // Update the ITEMs of the authorization FORM with the information received
@@ -50,32 +50,32 @@ function storeAuthorization($fbRes, $grantedScopes = null) {
     $arrQuestions = [];
     if ($authForm) {
         if ($q = $authForm->findQuestion('RESPONSE')) {
-            $authorized = $fbRes->getErrorCode() ? '2' : '1';
+            $authorized = $oauthResource->getErrorCode() ? '2' : '1';
             $q->setValue($authorized);
             $arrQuestions[] = $q;
         }
         if ($q = $authForm->findQuestion('ACCESS_TOKEN')) {
-            $q->setValue($fbRes->getToken());
+            $q->setValue($oauthResource->getToken());
             $arrQuestions[] = $q;
         }
         if ($q = $authForm->findQuestion('REFRESH_TOKEN')) {
-            $q->setValue($fbRes->getRefreshToken());
+            $q->setValue($oauthResource->getRefreshToken());
             $arrQuestions[] = $q;
         }
         if ($q = $authForm->findQuestion('EXPIRATION')) {
-            $q->setValue($fbRes->getExpiration());
+            $q->setValue($oauthResource->getExpiration());
             $arrQuestions[] = $q;
         }
         if ($q = $authForm->findQuestion('EXPIRATION_DATE')) {
-            $q->setValue($fbRes->getExpirationDate());
+            $q->setValue($oauthResource->getExpirationDate());
             $arrQuestions[] = $q;
         }
         if ($q = $authForm->findQuestion('ERROR_CODE')) {
-            $q->setValue($fbRes->getErrorCode());
+            $q->setValue($oauthResource->getErrorCode());
             $arrQuestions[] = $q;
         }
         if ($q = $authForm->findQuestion('ERROR_DESCRIPTION')) {
-            $q->setValue($fbRes->getErrorDescription());
+            $q->setValue($oauthResource->getErrorDescription());
             $arrQuestions[] = $q;
         }
         if (!empty($grantedScopes) && ($q = $authForm->findQuestion('GRANTED_SCOPES'))) {
@@ -92,8 +92,8 @@ function storeAuthorization($fbRes, $grantedScopes = null) {
     }
 
     // Update user profile information in Fitbit
-    if (!$fbRes->getErrorCode()) {
-        if ($GLOBALS['FITBIT_UPDATE_PERSONAL_DATA']) {
+    if (!$oauthResource->getErrorCode()) {
+        if ($GLOBALS['UPDATE_PERSONAL_DATA']) {
             $patient = $api->case_get_contact($task->getCaseId());
             $profileInfo = [];
             if ($patient) {
@@ -111,9 +111,9 @@ function storeAuthorization($fbRes, $grantedScopes = null) {
                     /*
                      * The name assigned to the patient will be composed by a generic name (e.g. "Mafipar") and the PARTICIPANT_REF IDENTIFIER
                      */
-                    $profileInfo['fullname'] = $GLOBALS['FITBIT_DEFAULT_NAME'] . ' ' . explode('@', $participantRef->getValue())[0];
+                    $profileInfo['fullname'] = $GLOBALS['DEFAULT_PROFILE_NAME'] . ' ' . explode('@', $participantRef->getValue())[0];
                 } else {
-                    $profileInfo['fullname'] = $GLOBALS['FITBIT_DEFAULT_NAME'];
+                    $profileInfo['fullname'] = $GLOBALS['DEFAULT_PROFILE_NAME'];
                 }
             }
         }
@@ -127,7 +127,8 @@ function storeAuthorization($fbRes, $grantedScopes = null) {
             }
         }
 
-        ActivityProvider::getInstance()->updateProfile($fbRes, $profileInfo);
+        $activityProvider = $oauthResource->getProvider();
+        $activityProvider->updateProfile($oauthResource, $profileInfo);
     }
 
     $lc2Action = new LC2Action(LC2Action::ACTION_REDIRECT_TO_TASK);
@@ -156,11 +157,11 @@ function updatePatientActivity($taskId, $toDate) {
 
     log_trace("UPDATE PATIENT ACTIVITY. Date: $toDate,  Admission: $admissionId");
 
-    $fitbitCredentials = loadOauthCredentials($admissionId);
+    $oauthResource = loadOauthCredentials($admissionId);
 
-    if (!$fitbitCredentials->isValid()) {
-        log_trace('ERROR! Invalid Fitbit credentials: ' . $fitbitCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription(), 'ErrorCode' => $fitbitCredentials->getErrorCode()];
+    if (!$oauthResource->isValid()) {
+        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthResource->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthResource->getErrorDescription(), 'ErrorCode' => $oauthResource->getErrorCode()];
     }
 
     // Find last reported activity
@@ -187,11 +188,12 @@ function updatePatientActivity($taskId, $toDate) {
         // Use only date part
         $lastReportedDate = explode(' ', $lastReportedDate)[0];
     }
-    // Request activity data to Fitbit
-    $steps = ActivityProvider::getInstance()->getActivityData($fitbitCredentials, $lastReportedDate, $toDate);
-    if ($fitbitCredentials->getErrorCode()) {
-        log_trace("ERROR! Fitbit returned: " . $fitbitCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $fitbitCredentials->getErrorDescription()];
+    // Request activity data to the Activity provider
+    $activityProvider = $oauthResource->getProvider();
+    $steps = $activityProvider->getActivityData($oauthResource, $lastReportedDate, $toDate);
+    if ($oauthResource->getErrorCode()) {
+        log_trace("ERROR! Fitbit returned: " . $oauthResource->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthResource->getErrorDescription()];
     }
     if (empty($steps)) {
         log_trace("No new activity detected", 1);
@@ -210,7 +212,7 @@ function updatePatientActivity($taskId, $toDate) {
             continue;
         }
         log_trace("Steps in $date: $value", 2);
-        $partialSteps = ActivityProvider::getInstance()->getDetailedActivity($fitbitCredentials, $date, '15min');
+        $partialSteps = $activityProvider->getDetailedActivity($oauthResource, $date, '15min');
         if ($lastReportedTask && $lastReportedTask->getDate() == $date) {
             updateStepsTask($lastReportedTask, $value, $date, $partialSteps);
         } else {
@@ -232,10 +234,10 @@ function checkSyncStatus($taskId) {
 
     log_trace("Checking sync status. Task: " . $task->getId() . ", Date:" . $task->getDate() . ", Patient: " . $task->getCaseId());
 
-    $oauthCredentials = loadOauthCredentials($task->getAdmissionId());
-    if (!$oauthCredentials->isValid()) {
-        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $oauthCredentials->getErrorDescription(), 'ErrorCode' => $oauthCredentials->getErrorCode()];
+    $oauthResource = loadOauthCredentials($task->getAdmissionId());
+    if (!$oauthResource->isValid()) {
+        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthResource->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthResource->getErrorDescription(), 'ErrorCode' => $oauthResource->getErrorCode()];
     }
 
     $syncStatusForm = $task->findForm($GLOBALS['FORM_CODES']['SYNC_STATUS']);
@@ -245,10 +247,11 @@ function checkSyncStatus($taskId) {
         throw new APIException("FORM.NOT_FOUND", $errorMsg);
     }
 
-    $devData = ActivityProvider::getInstance()->getDeviceData($oauthCredentials);
-    if ($oauthCredentials->getErrorCode()) {
-        log_trace("ERROR! Fitbit returned: " . $oauthCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $oauthCredentials->getErrorDescription()];
+    $activityProvider = $oauthResource->getProvider();
+    $devData = $activityProvider->getDeviceData($oauthResource);
+    if ($oauthResource->getErrorCode()) {
+        log_trace("ERROR! Fitbit returned: " . $oauthResource->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthResource->getErrorDescription()];
     }
 
     $lastSyncTime = '';
@@ -290,16 +293,17 @@ function setDeviceUserProfile($admissionId, $profileData) {
     if (empty($profileData)) {
         return ['result' => 1, 'ErrorMsg' => '', 'ErrorCode' => ''];
     }
-    $oauthCredentials = loadOauthCredentials($admissionId);
-    if (!$oauthCredentials->isValid()) {
-        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $oauthCredentials->getErrorDescription(), 'ErrorCode' => $oauthCredentials->getErrorCode()];
+    $oauthResource = loadOauthCredentials($admissionId);
+    if (!$oauthResource->isValid()) {
+        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthResource->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthResource->getErrorDescription(), 'ErrorCode' => $oauthResource->getErrorCode()];
     }
 
-    ActivityProvider::getInstance()->updateProfile($oauthCredentials, $profileData);
-    if ($oauthCredentials->getErrorCode()) {
-        log_trace("ERROR! Fitbit returned: " . $oauthCredentials->getErrorDescription(), 1);
-        return ['ErrorMsg' => $oauthCredentials->getErrorDescription()];
+    $activityProvider = $oauthResource->getProvider();
+    $activityProvider->updateProfile($oauthResource, $profileData);
+    if ($oauthResource->getErrorCode()) {
+        log_trace("ERROR! Fitbit returned: " . $oauthResource->getErrorDescription(), 1);
+        return ['ErrorMsg' => $oauthResource->getErrorDescription()];
     }
 
     return ['result' => 1, 'ErrorMsg' => '', 'ErrorCode' => ''];
@@ -570,7 +574,7 @@ function loadOauthCredentials($admissionId) {
     if (!$credentialsForm) {
         $options['errorCode'] = 'AUTHORIZATION_MISSING';
         $options['errorDescription'] = 'Fitbit credentials not found in this ADMISSION';
-        return new OauthResource($options);
+        return new OauthResource($options, null);
     }
 
     $options = [];
@@ -584,9 +588,18 @@ function loadOauthCredentials($admissionId) {
         if ($q->getItemCode() == 'EXPIRATION') {
             $options['expiration'] = $q->getValue();
         }
+        if ($q->getItemCode() == 'PROVIDER') {
+            $activityProviderName = $q->getValue();
+        }
     }
 
-    $resource = new OauthResource($options);
+    if ($activityProviderName) {
+        // If an specific activity provider has not been defined, use the default provider
+        $activityProviderName = $GLOBALS['DEFAULT_ACTIVITY_PROVIDER'];
+    }
+
+    $provider = ActivityProvider::getInstance($activityProviderName);
+    $resource = new OauthResource($options, $provider);
     if (!$resource->isValid()) {
         return $resource;
     }
