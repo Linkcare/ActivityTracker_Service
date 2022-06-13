@@ -5,7 +5,7 @@
  */
 
 /**
- * Request the activity of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
+ * Request the activity of a patient stored in the Activity provider platform and updates the ADMISSION adding the necessary TASKs
  *
  * @param OauthResource $oauthResource
  * @param string $grantedScopes A space separated list of scopes for which authorization has been granted
@@ -88,10 +88,15 @@ function storeAuthorization($oauthResource, $grantedScopes = null) {
             $q->setValue(implode(',', $deniedScopes));
             $arrQuestions[] = $q;
         }
+        if ($q = $authForm->findQuestion('PROVIDER')) {
+            // Store granted scope as a list of comma separated scopes
+            $q->setValue($oauthResource->getProviderName());
+            $arrQuestions[] = $q;
+        }
         $api->form_set_all_answers($authForm->getId(), $arrQuestions, false);
     }
 
-    // Update user profile information in Fitbit
+    // Update user profile information in the Activity provider platform
     if (!$oauthResource->getErrorCode()) {
         if ($GLOBALS['UPDATE_PERSONAL_DATA']) {
             $patient = $api->case_get_contact($task->getCaseId());
@@ -140,7 +145,7 @@ function storeAuthorization($oauthResource, $grantedScopes = null) {
 }
 
 /**
- * Request the activiy of a patient stored in Fitbit and updates the ADMISSION adding the necessary TASKs
+ * Request the activiy of a patient stored in tha Activity Provider platform and updates the ADMISSION adding the necessary TASKs
  *
  * @param string $taskId
  * @param string $toDate
@@ -162,26 +167,16 @@ function updatePatientActivity($taskId, $toDate) {
     $oauthResource = loadOauthCredentials($admissionId);
 
     if (!$oauthResource->isValid()) {
-        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthResource->getErrorDescription(), 1);
+        log_trace('ERROR! Invalid OAuth credentials: ' . $oauthResource->getErrorDescription(), 1);
         return ['ErrorMsg' => $oauthResource->getErrorDescription(), 'ErrorCode' => $oauthResource->getErrorCode()];
     }
 
     // Find last reported activity
+    $lastReportedTask = findLastReportedActivity($admissionId);
     $lastReportedDate = null;
-    $lastReportedTask = null;
-    $filter = new TaskFilter();
-    $filter->setObjectType('TASKS');
-    $filter->setStatusIds('CLOSED');
-    $filter->setTaskCodes($GLOBALS['TASK_CODES']['STEPS']);
-    $stepTasks = $api->admission_get_task_list($admissionId, 1, 0, $filter, false);
-
-    if (!empty($stepTasks)) {
-        /* @var APITask $t */
-        $t = reset($stepTasks);
-        $lastReportedDate = $t->getDate();
-        $lastReportedTask = $t;
-    }
-    if (!$lastReportedDate) {
+    if ($lastReportedTask) {
+        $lastReportedDate = $lastReportedTask->getDate();
+    } else {
         // If there exists no previous TASK with steps, use as start date the ADMISSION enrollment date
         $admission = $api->admission_get($admissionId);
         $lastReportedDate = $admission->getEnrolDate();
@@ -194,7 +189,7 @@ function updatePatientActivity($taskId, $toDate) {
     $activityProvider = $oauthResource->getProvider();
     $steps = $activityProvider->getActivityData($oauthResource, $lastReportedDate, $toDate, $timeZone);
     if ($oauthResource->getErrorCode()) {
-        log_trace("ERROR! Fitbit returned: " . $oauthResource->getErrorDescription(), 1);
+        log_trace("ERROR! Activity provider returned: " . $oauthResource->getErrorDescription(), 1);
         return ['ErrorMsg' => $oauthResource->getErrorDescription()];
     }
     if (empty($steps)) {
@@ -226,7 +221,7 @@ function updatePatientActivity($taskId, $toDate) {
 }
 
 /**
- * Checks the status of the synchronization of a device with the Fitbit server
+ * Checks the status of the synchronization of a device with the Activity provider server
  *
  * @param string $taskId Reference to the TASK where the sync status will be stored
  */
@@ -238,7 +233,7 @@ function checkSyncStatus($taskId) {
 
     $oauthResource = loadOauthCredentials($task->getAdmissionId());
     if (!$oauthResource->isValid()) {
-        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthResource->getErrorDescription(), 1);
+        log_trace('ERROR! Invalid OAuth credentials: ' . $oauthResource->getErrorDescription(), 1);
         return ['ErrorMsg' => $oauthResource->getErrorDescription(), 'ErrorCode' => $oauthResource->getErrorCode()];
     }
 
@@ -252,7 +247,7 @@ function checkSyncStatus($taskId) {
     $activityProvider = $oauthResource->getProvider();
     $devData = $activityProvider->getDeviceData($oauthResource);
     if ($oauthResource->getErrorCode()) {
-        log_trace("ERROR! Fitbit returned: " . $oauthResource->getErrorDescription(), 1);
+        log_trace("ERROR! Activity provider returned: " . $oauthResource->getErrorDescription(), 1);
         return ['ErrorMsg' => $oauthResource->getErrorDescription()];
     }
 
@@ -265,6 +260,20 @@ function checkSyncStatus($taskId) {
         if ($lastSyncTime < $device['lastSyncTime']) {
             $lastSyncTime = $device['lastSyncTime'];
             $batteryLevel = $device['batteryLevel'];
+        }
+    }
+
+    if (isNullOrEmpty($lastSyncTime)) {
+        /* We have no information abount the last synchronization. Use as last sync date the last date with steps */
+        log_trace("WARNING: We have no information abount the last synchronization date. Use as last sync date the last date with steps", 1);
+        $lastReportedTask = findLastReportedActivity($task->getAdmissionId());
+        $lastSyncTime = null;
+        if ($lastReportedTask) {
+            $lastSyncTime = $lastReportedTask->getDateTime();
+        } else {
+            // If there exists no previous TASK with steps, use as start date the ADMISSION enrollment date
+            $admission = $api->admission_get($task->getAdmissionId());
+            $lastSyncTime = $admission->getEnrolDate();
         }
     }
 
@@ -284,7 +293,7 @@ function checkSyncStatus($taskId) {
 }
 
 /**
- * Checks the status of the synchronization of a device with the Fitbit server
+ * Checks the status of the synchronization of a device with the Activity provider server
  *
  * @param string $admissionId Reference to the ADMISSION of the patient
  */
@@ -297,14 +306,14 @@ function setDeviceUserProfile($admissionId, $profileData) {
     }
     $oauthResource = loadOauthCredentials($admissionId);
     if (!$oauthResource->isValid()) {
-        log_trace('ERROR! Invalid Fitbit credentials: ' . $oauthResource->getErrorDescription(), 1);
+        log_trace('ERROR! Invalid OAuth credentials: ' . $oauthResource->getErrorDescription(), 1);
         return ['ErrorMsg' => $oauthResource->getErrorDescription(), 'ErrorCode' => $oauthResource->getErrorCode()];
     }
 
     $activityProvider = $oauthResource->getProvider();
     $activityProvider->updateProfile($oauthResource, $profileData);
     if ($oauthResource->getErrorCode()) {
-        log_trace("ERROR! Fitbit returned: " . $oauthResource->getErrorDescription(), 1);
+        log_trace("ERROR! Activity provider returned: " . $oauthResource->getErrorDescription(), 1);
         return ['ErrorMsg' => $oauthResource->getErrorDescription()];
     }
 
@@ -386,10 +395,10 @@ function insertCustomSteps($admissionId, $steps) {
  * ******************************** INTERNAL FUNCTIONS *********************************
  */
 /**
- * Generates the URL to redirect to LC2 after receiving the authorization information from Fitbit.
+ * Generates the URL to redirect to LC2 after receiving the authorization information from the Activity provider's authorization server.
  * This URL informs LC2 that it must invoke a service to store the authorization in the appropriate ADMISSION
  *
- * @param OauthResource $resource Fitbit object with the data we want to store at LC2
+ * @param OauthResource $resource OAuthResource object with the data we want to store at LC2
  * @return string
  */
 function storeAuthorizationUrl(OauthResource $resource, $scope = null) {
@@ -409,6 +418,7 @@ function storeAuthorizationUrl(OauthResource $resource, $scope = null) {
         if (!empty($scope)) {
             $query[] = 'scope=' . urlencode($scope);
         }
+        $query[] = 'provider=' . urlencode($resource->getProviderName());
     }
 
     $strQuery = implode('&', $query);
@@ -557,7 +567,7 @@ function updateStepsTask($task, $stepsNumber, $date, $partialSteps = null) {
 function loadOauthCredentials($admissionId) {
     $api = LinkcareSoapAPI::getInstance();
 
-    // Get Fitbit OAuth credentials from the most recent autentication TASK
+    // Get OAuth credentials from the most recent autentication TASK
     $filter = new TaskFilter();
     $filter->setObjectType('TASKS');
     $filter->setStatusIds('CLOSED');
@@ -579,7 +589,7 @@ function loadOauthCredentials($admissionId) {
 
     if (!$credentialsForm) {
         $options['errorCode'] = 'AUTHORIZATION_MISSING';
-        $options['errorDescription'] = 'Fitbit credentials not found in this ADMISSION';
+        $options['errorDescription'] = 'OAuth credentials not found in this ADMISSION';
         return new OauthResource($options, null);
     }
 
@@ -651,24 +661,29 @@ function loadOauthCredentials($admissionId) {
 }
 
 /**
- * The Fullname stored in Fitbit paltform can't have number or special characters.
- * This function replaces numbers 0-9 by the characters 'A-J', and special characters by spaces
+ * Returns the last TASK with registered activity
+ *
+ * @param string $admissionId
+ * @return APITask
  */
-function formatNameForFitbit($txt) {
-    $txt = trim($txt);
-    if (!$txt) {
-        return $txt;
+function findLastReportedActivity($admissionId) {
+    $api = LinkcareSoapAPI::getInstance();
+
+    $lastReportedTask = null;
+    $filter = new TaskFilter();
+    $filter->setObjectType('TASKS');
+    $filter->setStatusIds('CLOSED');
+    $filter->setTaskCodes($GLOBALS['TASK_CODES']['STEPS']);
+    $stepTasks = $api->admission_get_task_list($admissionId, 1, 0, $filter, false);
+
+    if (!empty($stepTasks)) {
+        /* @var APITask $t */
+        $t = reset($stepTasks);
+        $lastReportedTask = $t;
     }
 
-    $txt = str_replace(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], $txt);
-    $final = '';
-    foreach (str_split_multibyte($txt) as $char) {
-        if (!preg_match('/\p{L}/', $char)) {
-            $final = trim($final) . ' ';
-        } else {
-            $final = $final . $char;
-        }
-    }
-
-    return trim($final);
+    return $lastReportedTask;
 }
+
+
+

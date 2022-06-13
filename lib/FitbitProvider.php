@@ -19,6 +19,15 @@ class FitbitProvider implements IActivityProvider {
     /**
      *
      * {@inheritdoc}
+     * @see IActivityProvider::getProviderName()
+     */
+    public function getProviderName() {
+        return 'fitbit';
+    }
+
+    /**
+     *
+     * {@inheritdoc}
      * @see IActivityProvider::getAuthorizationUrl()
      */
     public function getAuthorizationUrl($state) {
@@ -291,7 +300,7 @@ class FitbitProvider implements IActivityProvider {
         if (!empty($params)) {
             $bodyParams = [];
             if (!isNullOrEmpty($params["fullname"])) {
-                $bodyParams[] = "fullname=" . formatNameForFitbit($params["fullname"]);
+                $bodyParams[] = "fullname=" . self::formatNameForFitbit($params["fullname"]);
             }
             if (!isNullOrEmpty($params["gender"])) {
                 $bodyParams[] = "gender=" . $params["gender"];
@@ -394,6 +403,29 @@ class FitbitProvider implements IActivityProvider {
             }
             return [];
         }
+    }
+
+    /**
+     * The Fullname stored in Fitbit platform can't have number or special characters.
+     * This function replaces numbers 0-9 by the characters 'A-J', and special characters by spaces
+     */
+    static private function formatNameForFitbit($txt) {
+        $txt = trim($txt);
+        if (!$txt) {
+            return $txt;
+        }
+
+        $txt = str_replace(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], $txt);
+        $final = '';
+        foreach (str_split_multibyte($txt) as $char) {
+            if (!preg_match('/\p{L}/', $char)) {
+                $final = trim($final) . ' ';
+            } else {
+                $final = $final . $char;
+            }
+        }
+
+        return trim($final);
     }
 }
 ?>

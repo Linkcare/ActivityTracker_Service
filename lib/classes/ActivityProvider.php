@@ -9,14 +9,15 @@ class ActivityProvider {
 
     /**
      *
-     * @param string $service
+     * @param string $providerName
      * @return IActivityProvider
      */
-    static public function getInstance($service) {
-        if ($service == self::PROVIDER_FITBIT) {
+    static public function getInstance($providerName) {
+        $providerName = strtolower($providerName);
+        if ($providerName == self::PROVIDER_FITBIT) {
             return new FitbitProvider();
         }
-        if ($service == self::PROVIDER_HUAWEI) {
+        if ($providerName == self::PROVIDER_HUAWEI) {
             return new HuaweiProvider();
         }
 

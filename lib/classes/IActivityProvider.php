@@ -12,6 +12,13 @@ interface IActivityProvider {
     public function getProvider();
 
     /**
+     * Returns the name of the provider (for example: 'fitbit')
+     *
+     * @return string
+     */
+    public function getProviderName();
+
+    /**
      * Obtain the OAuth Authentication URL for the corresponding provider service
      *
      * @param string $state

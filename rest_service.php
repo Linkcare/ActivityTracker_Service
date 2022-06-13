@@ -25,17 +25,22 @@ try {
         case 'authorize' :
             // Connect as service user, reusing existing session if possible
             apiConnect(null, $GLOBALS['SERVICE_USER'], $GLOBALS['SERVICE_PASSWORD'], 47, $GLOBALS['SERVICE_TEAM'], true);
-            $options['errorCode'] = $_POST["error_code"];
-            $options['errorDescription'] = $_POST["error"];
-            $options['taskId'] = $_POST["task"];
-            $options['access_token'] = $_POST["access_token"];
-            $options['refresh_token'] = $_POST["refresh_token"];
-            $options['expiration'] = $_POST["exp"];
-            log_trace("AUTHORIZATION RESPONSE: " . json_encode($options));
+            $options['errorCode'] = $_POST['error_code'];
+            $options['errorDescription'] = $_POST['error'];
+            $options['taskId'] = $_POST['task'];
+            $options['access_token'] = $_POST['access_token'];
+            $options['refresh_token'] = $_POST['refresh_token'];
+            $options['expiration'] = $_POST['exp'];
+            $providerName = $_POST['provider'];
+            $options['provider'] = $providerName;
+            log_trace('AUTHORIZATION RESPONSE: ' . json_encode($options));
 
-            $scope = $_POST["scope"];
+            $scope = $_POST['scope'];
 
-            $provider = ActivityProvider::getInstance(ActivityProvider::PROVIDER_FITBIT);
+            if (isNullOrEmpty($providerName)) {
+                $providerName = $GLOBALS['DEFAULT_ACTIVITY_PROVIDER'];
+            }
+            $provider = ActivityProvider::getInstance($providerName);
             $r = new OauthResource($options, $provider);
             $lc2Action = storeAuthorization($r, $scope);
             break;

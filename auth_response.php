@@ -7,15 +7,15 @@ if (!isset($_GET['state'])) {
 } else {
     $state = explode("/", $_GET['state']);
     $taskId = $state[0];
-    $service = $state[1];
+    $providerName = $state[1];
 }
 
 $scope = null;
-if (!$service) {
-    $service = $GLOBALS['DEFAULT_ACTIVITY_PROVIDER'];
+if (!$providerName) {
+    $providerName = $GLOBALS['DEFAULT_ACTIVITY_PROVIDER'];
 }
 
-$provider = ActivityProvider::getInstance($service);
+$provider = ActivityProvider::getInstance($providerName);
 if (isset($_GET['error']) && isset($_GET['error_description'])) {
     // An error has ocurred while getting the Fitbit permission.
     $oauthResource = new OauthResource(['errorCode' => $_GET['error'], 'errorDescription' => $_GET['error_description'], 'taskId' => $taskId], $provider);

@@ -144,6 +144,14 @@ class APITask {
 
     /**
      *
+     * @return string
+     */
+    public function getDateTime() {
+        return trim($this->date . ' ', $this->hour);
+    }
+
+    /**
+     *
      * @return int
      */
     public function getDuration() {

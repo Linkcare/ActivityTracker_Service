@@ -21,6 +21,15 @@ class HuaweiProvider implements IActivityProvider {
     /**
      *
      * {@inheritdoc}
+     * @see IActivityProvider::getProviderName()
+     */
+    public function getProviderName() {
+        return 'huawei';
+    }
+
+    /**
+     *
+     * {@inheritdoc}
      * @see IActivityProvider::getAuthorizationUrl()
      */
     public function getAuthorizationUrl($state) {

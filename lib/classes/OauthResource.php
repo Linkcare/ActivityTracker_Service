@@ -109,6 +109,17 @@ class OauthResource {
 
     /**
      *
+     * @return string
+     */
+    public function getProviderName() {
+        if (!$this->provider) {
+            return null;
+        }
+        return $this->provider->getName();
+    }
+
+    /**
+     *
      * @return AccessToken
      */
     public function getAccessToken() {
