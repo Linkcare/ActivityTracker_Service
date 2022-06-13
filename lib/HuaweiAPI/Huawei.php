@@ -65,7 +65,7 @@ class Huawei extends AbstractProvider {
             return self::$provider;
         }
         self::$provider = new Huawei(['clientId' => $GLOBALS['HUAWEI_CLIENT_ID'], 'clientSecret' => $GLOBALS['HUAWEI_CLIENT_SECRET'],
-                'redirectUri' => $GLOBALS['HUAWEI_REDIRECT_URI']]);
+                'redirectUri' => $GLOBALS['OAUTH_REDIRECT_URI']]);
         return self::$provider;
     }
 

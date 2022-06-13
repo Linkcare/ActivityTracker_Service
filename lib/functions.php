@@ -18,7 +18,7 @@ function storeAuthorization($oauthResource, $grantedScopes = null) {
     if ($grantedScopes) {
         $grantedScopes = explode(' ', $grantedScopes);
         // Check if authorization was granted for all requested scopes
-        foreach ($GLOBALS['FITBIT_SCOPES_REQUESTED'] as $scope) {
+        foreach ($GLOBALS['PERMISSIONS_REQUESTED'] as $scope) {
             if (!in_array($scope, $grantedScopes)) {
                 $deniedScopes[] = $scope;
             }
@@ -78,12 +78,12 @@ function storeAuthorization($oauthResource, $grantedScopes = null) {
             $q->setValue($oauthResource->getErrorDescription());
             $arrQuestions[] = $q;
         }
-        if (!empty($grantedScopes) && ($q = $authForm->findQuestion('GRANTED_SCOPES'))) {
+        if ($q = $authForm->findQuestion('GRANTED_SCOPES')) {
             // Store granted scope as a list of comma separated scopes
-            $q->setValue(implode(',', $grantedScopes));
+            $q->setValue(is_array($grantedScopes) ? implode(',', $grantedScopes) : '');
             $arrQuestions[] = $q;
         }
-        if (!empty($deniedScopes) && ($q = $authForm->findQuestion('DENIED_SCOPES'))) {
+        if ($q = $authForm->findQuestion('DENIED_SCOPES')) {
             // Store granted scope as a list of comma separated scopes
             $q->setValue(implode(',', $deniedScopes));
             $arrQuestions[] = $q;
@@ -154,6 +154,8 @@ function updatePatientActivity($taskId, $toDate) {
     $api = LinkcareSoapAPI::getInstance();
     $updateActivityTask = $api->task_get($taskId);
     $admissionId = $updateActivityTask->getAdmissionId();
+    $patient = $api->case_get($updateActivityTask->getCaseId());
+    $timeZone = $patient->getTimezone();
 
     log_trace("UPDATE PATIENT ACTIVITY. Date: $toDate,  Admission: $admissionId");
 
@@ -190,7 +192,7 @@ function updatePatientActivity($taskId, $toDate) {
     }
     // Request activity data to the Activity provider
     $activityProvider = $oauthResource->getProvider();
-    $steps = $activityProvider->getActivityData($oauthResource, $lastReportedDate, $toDate);
+    $steps = $activityProvider->getActivityData($oauthResource, $lastReportedDate, $toDate, $timeZone);
     if ($oauthResource->getErrorCode()) {
         log_trace("ERROR! Fitbit returned: " . $oauthResource->getErrorDescription(), 1);
         return ['ErrorMsg' => $oauthResource->getErrorDescription()];
@@ -212,7 +214,7 @@ function updatePatientActivity($taskId, $toDate) {
             continue;
         }
         log_trace("Steps in $date: $value", 2);
-        $partialSteps = $activityProvider->getDetailedActivity($oauthResource, $date, '15min');
+        $partialSteps = $activityProvider->getDetailedActivity($oauthResource, $date, '15min', $timeZone);
         if ($lastReportedTask && $lastReportedTask->getDate() == $date) {
             updateStepsTask($lastReportedTask, $value, $date, $partialSteps);
         } else {
@@ -391,6 +393,10 @@ function insertCustomSteps($admissionId, $steps) {
  * @return string
  */
 function storeAuthorizationUrl(OauthResource $resource, $scope = null) {
+    /*
+     * The name of the scopes returned depend on the activity provider (Fitbit, Huawei...), but we must use standard names, so we will map the
+     * proprietary names to our own names
+     */
     $query = [];
     $query[] = 'task=' . urlencode($resource->getTaskId());
     if ($resource->getErrorCode()) {
@@ -400,7 +406,7 @@ function storeAuthorizationUrl(OauthResource $resource, $scope = null) {
         $query[] = 'access_token=' . urlencode($resource->getToken());
         $query[] = 'refresh_token=' . urlencode($resource->getRefreshToken());
         $query[] = 'exp=' . urlencode($resource->getExpiration());
-        if ($scope != null) {
+        if (!empty($scope)) {
             $query[] = 'scope=' . urlencode($scope);
         }
     }
@@ -593,7 +599,7 @@ function loadOauthCredentials($admissionId) {
         }
     }
 
-    if ($activityProviderName) {
+    if (!$activityProviderName) {
         // If an specific activity provider has not been defined, use the default provider
         $activityProviderName = $GLOBALS['DEFAULT_ACTIVITY_PROVIDER'];
     }

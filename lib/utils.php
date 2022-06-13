@@ -162,6 +162,44 @@ function setSystemTimeZone() {
 }
 
 /**
+ * Returns the timezone offset respect to UTC of the current date.
+ * The return value is expressed in hours, rounding to half hours.
+ * If the date provided does not fall in a range of 12h around the UTC time, it is considered invalid and 0 will be returned
+ *
+ * @param string $date
+ * @return number
+ */
+function timezoneOffset($timezone) {
+    $datetime = new DateTime('now', new DateTimeZone('UTC'));
+    $nowUTC = $datetime->format('Y-m-d H:i:s');
+
+    if (strpos($timezone, 'UTC+') === 0) {
+        $timezone = explode('UTC+', $timezone)[1];
+    } elseif (strpos($timezone, 'UTC-') === 0) {
+        $timezone = -explode('UTC-', $timezone)[1];
+    }
+
+    if (is_numeric($timezone)) {
+        // Some timezones are not an integer number of hours
+        $timezone = intval($timezone * 60);
+        $d = strtotime($nowUTC);
+        $dateInTimezone = date('Y-m-d H:i:s', strtotime("$timezone minutes", $d));
+    } else {
+        $datetime = new DateTime('now', new DateTimeZone($timezone));
+        $dateInTimezone = $datetime->format('Y-m-d H:i:s');
+    }
+
+    // difference in hours (rounding to half hours):
+    $interval = intval(strtotime($dateInTimezone) - strtotime($nowUTC));
+    $sign = $interval < 0 ? -1 : 1;
+    $interval = intval(($interval + 900 * $sign) / 1800) / 2;
+    if ($interval > 12 || $interval < -11) {
+        return 0;
+    }
+    return $interval;
+}
+
+/**
  * Calculates the current date in the specified timezone
  *
  * @param string|number $timezone
@@ -173,8 +211,24 @@ function currentDate($timezone = null) {
     $datetime->setTimezone($tz_object);
     $dateUTC = $datetime->format('Y\-m\-d\ H:i:s');
 
+    return dateInTimezone($dateUTC, $timezone);
+}
+
+/**
+ * Applies a timezone shift to an UTC date
+ * Timezone can be expressed as:
+ * <ul>
+ * <li>a numeric value expressing an offset in hours</li>
+ * <li>a string representing a valid timezone (e.g. Europe/Madrid)</li>
+ * </ul>
+ *
+ * @param string $dateUTC
+ * @param number/string $timezone
+ * @return string
+ */
+function dateInTimezone($dateUTC, $timezone = null) {
     if ($timezone === null) {
-        return $dateUTC;
+        $timezone = 0;
     }
 
     if (startsWith('UTC+', $timezone)) {
@@ -187,6 +241,9 @@ function currentDate($timezone = null) {
         // Some timezones are not an integer number of hours
         $timezone = intval($timezone * 60);
         $d = strtotime($dateUTC);
+        if (!$d) {
+            $d = strtotime(todayUTC());
+        }
         $dateInTimezone = date('Y-m-d H:i:s', strtotime("$timezone minutes", $d));
     } else {
         try {
@@ -213,6 +270,45 @@ function setLanguage() {
         $lang = substr($_SERVER['HTTP_ACCEPT_LANGUAGE'], 0, 2);
     }
     Localization::init($lang);
+}
+
+/**
+ * Returns a Unix timestamp (seconds since 1/1/1970 UTC) from a date expressed in a timezone
+ *
+ * @param string $localDate Local date in format 'yyyy-mm-dd hh:mm:ss'
+ * @param string $timezone Timezone of the date
+ * @return number
+ */
+function localDateToUnixTimestamp($localDate, $timezone) {
+    // The dates must be a timestamp of a 13-digit integer, in milliseconds.
+    $curTimeZone = date_default_timezone_get();
+    date_default_timezone_set('UTC');
+    $timezoneOffset = timezoneOffset($timezone) * 3600;
+
+    $UTCTimestamp = strtotime($localDate) - $timezoneOffset;
+
+    date_default_timezone_set($curTimeZone);
+
+    return $UTCTimestamp;
+}
+
+/**
+ * Converts a Unix timestamp (seconds since 1/1/1970 UTC) to a local date of a selected timezone
+ *
+ * @param number $timestamp
+ * @param int|string $timezone
+ * @param string $format (default = 'Y-m-d H:i:s')
+ * @return string
+ */
+function UnixTimestampToLocalDate($timestamp, $timezone, $format = 'Y-m-d H:i:s') {
+    $timezoneOffset = timezoneOffset($timezone) * 3600;
+
+    $curTimeZone = date_default_timezone_get();
+    date_default_timezone_set('UTC');
+    $localDate = date($format, $timestamp + $timezoneOffset);
+    date_default_timezone_set($curTimeZone);
+
+    return $localDate;
 }
 
 /**

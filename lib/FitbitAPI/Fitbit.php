@@ -61,7 +61,7 @@ class Fitbit extends AbstractProvider {
             return self::$provider;
         }
         self::$provider = new Fitbit(['clientId' => $GLOBALS['FITBIT_CLIENT_ID'], 'clientSecret' => $GLOBALS['FITBIT_CLIENT_SECRET'],
-                'redirectUri' => $GLOBALS['FITBIT_REDIRECT_URI']]);
+                'redirectUri' => $GLOBALS['OAUTH_REDIRECT_URI']]);
         return self::$provider;
     }
 

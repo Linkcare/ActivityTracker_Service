@@ -23,7 +23,11 @@ class FitbitProvider implements IActivityProvider {
      */
     public function getAuthorizationUrl($state) {
         $addParams = '&prompt=login';
-        $authorizationUrlParams = ['state' => $state, 'scope' => $GLOBALS['FITBIT_SCOPES_REQUESTED']];
+        $scope = [];
+        foreach ($GLOBALS['PERMISSIONS_REQUESTED'] as $permission) {
+            $scope[] = $permission;
+        }
+        $authorizationUrlParams = ['state' => $state, 'scope' => $scope];
         $authorizationUrl = Fitbit::getProvider()->getAuthorizationUrl($authorizationUrlParams);
 
         return $authorizationUrl . $addParams;
@@ -35,7 +39,17 @@ class FitbitProvider implements IActivityProvider {
      * @see IActivityProvider::getAccessToken()
      */
     public function getAccessToken($grant, array $options = []) {
-        Fitbit::getProvider()->getAccessToken($grant, $options);
+        return Fitbit::getProvider()->getAccessToken($grant, $options);
+    }
+
+    /**
+     *
+     * {@inheritdoc}
+     * @see IActivityProvider::normalizeScopes()
+     */
+    public function normalizeScopes($scopes) {
+        // The scopes of Fitbit are already normalized
+        return $scopes;
     }
 
     /**
@@ -43,7 +57,7 @@ class FitbitProvider implements IActivityProvider {
      * {@inheritdoc}
      * @see IActivityProvider::getActivityData()
      */
-    public function getActivityData(OauthResource $resource, $startDate, $endDate, $locale = 'es_ES') {
+    public function getActivityData(OauthResource $resource, $startDate, $endDate, $timezone = 0, $locale = 'es_ES') {
         // ONLY FOR DEBUG
         // $steps = [['dateTime' => '2021-06-28', 'value' => '3224'], ['dateTime' => '2021-06-29', 'value' => '2864'],
         // ['dateTime' => '2021-06-30', 'value' => '9230']];
@@ -91,7 +105,7 @@ class FitbitProvider implements IActivityProvider {
      * {@inheritdoc}
      * @see IActivityProvider::getDetailedActivity()
      */
-    public function getDetailedActivity(OauthResource $resource, $date, $breakdownPeriod, $locale = 'es_ES') {
+    public function getDetailedActivity(OauthResource $resource, $date, $breakdownPeriod, $timezone = 0, $locale = 'es_ES') {
         // ONLY FOR DEBUG
         // $steps = [['time' => '09:10', 'value' => '300'], ['time' => '09:15', 'value' => '400'], ['time' => '10:22', 'value' => '500'],
         // ['time' => '11:02', 'value' => '600']];
@@ -145,7 +159,7 @@ class FitbitProvider implements IActivityProvider {
      * {@inheritdoc}
      * @see IActivityProvider::getSleepData()
      */
-    public function getSleepData(OauthResource $resource, $startDate, $endDate, $locale = 'es_ES') {
+    public function getSleepData(OauthResource $resource, $startDate, $endDate, $timezone = 0, $locale = 'es_ES') {
         if (!$endDate) {
             return [];
         }

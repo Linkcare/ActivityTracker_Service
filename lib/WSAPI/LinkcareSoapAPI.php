@@ -406,7 +406,7 @@ class LinkcareSoapAPI {
     /**
      *
      * @param string $caseId
-     * @return APIContact
+     * @return APICase
      */
     public function case_get($caseId, $admissionId = null) {
         $case = null;

@@ -25,7 +25,35 @@ class HuaweiProvider implements IActivityProvider {
      */
     public function getAuthorizationUrl($state) {
         $addParams = '&access_type=offline';
-        $authorizationUrlParams = ['state' => $state];
+        $scope = ['openid'];
+
+        foreach ($GLOBALS['PERMISSIONS_REQUESTED'] as $permission) {
+            switch ($permission) {
+                case 'activity' :
+                    $scope[] = 'https://www.huawei.com/healthkit/activity.read';
+                    $scope[] = 'https://www.huawei.com/healthkit/step.read';
+                    break;
+                case 'heartrate' :
+                    break;
+                case 'location' :
+                    break;
+                case 'profile' :
+                    break;
+                case 'settings' :
+                    break;
+                case 'sleep' :
+                    $scope[] = 'https://www.huawei.com/healthkit/sleep.read';
+                    break;
+                case 'social' :
+                    break;
+                case 'weight' :
+                    break;
+                case 'nutrition' :
+                    break;
+            }
+        }
+
+        $authorizationUrlParams = ['state' => $state, 'scope' => $scope];
         $authorizationUrl = Huawei::getProvider()->getAuthorizationUrl($authorizationUrlParams);
 
         return $authorizationUrl . $addParams;
@@ -37,7 +65,28 @@ class HuaweiProvider implements IActivityProvider {
      * @see IActivityProvider::getAccessToken()
      */
     public function getAccessToken($grant, array $options = []) {
-        Huawei::getProvider()->getAccessToken($grant, $options);
+        return Huawei::getProvider()->getAccessToken($grant, $options);
+    }
+
+    /**
+     *
+     * {@inheritdoc}
+     * @see IActivityProvider::normalizeScopes()
+     */
+    public function normalizeScopes($scopes) {
+        $normalizedScopes = [];
+        foreach (explode(' ', $scopes) as $scopeName) {
+            switch ($scopeName) {
+                case 'https://www.huawei.com/healthkit/activity.read' :
+                case 'https://www.huawei.com/healthkit/step.read' :
+                    $normalizedScopes[] = 'activity';
+                    break;
+                case 'https://www.huawei.com/healthkit/sleep.read' :
+                    $normalizedScopes[] = 'sleep';
+                    break;
+            }
+        }
+        return implode(' ', array_unique($normalizedScopes));
     }
 
     /**
@@ -49,16 +98,17 @@ class HuaweiProvider implements IActivityProvider {
      * {@inheritdoc}
      * @see IActivityProvider::getActivityData()
      */
-    public function getActivityData(OauthResource $resource, $startDate, $endDate, $locale = 'es_ES') {
+    public function getActivityData(OauthResource $resource, $startDate, $endDate, $timezone = 0, $locale = 'es_ES') {
         // The dates must be a timestamp of a 13-digit integer, in milliseconds.
         if (isset($startDate)) {
-            $startDate = strtotime($startDate) * 1000;
+            $startDate = localDateToUnixTimestamp($startDate, $timezone) * 1000;
         } else {
             return [];
         }
-        // If endDate isn't defined, the maximum possible interval (start date + 30 days and 23:59 hours) will be assigned
-        // If it's defined, sum 23:59 hours and transform it to milliseconds
-        $endDate = isset($endDate) ? (strtotime($endDate) + 84983) * 1000 : $startDate + 2591940000;
+
+        // If endDate isn't defined, the maximum possible interval (start date + 30 days and 23:59:59 hours) will be assigned
+        // If it's defined, sum 23:59:59 hours and transform it to milliseconds
+        $endDate = isset($endDate) ? (localDateToUnixTimestamp($endDate, $timezone) + 86399) * 1000 : $startDate + 2591999000;
         // Check in case the difference between given dates was bigger than 30 days
         if (($endDate - $startDate) > 2592000000) {
             $resource->setErrorCode("dates_interval_error");
@@ -67,14 +117,14 @@ class HuaweiProvider implements IActivityProvider {
         }
 
         // The 'dataTypeName' value is the scope for atomic 'steps'.
-        $activityData = $this->getSampleSet($resource, $startDate, $endDate, 86400000, "com.huawei.continuous.steps.delta");
+        $activityData = $this->getSampleSet($resource, $startDate, $endDate, 86400000, "com.huawei.continuous.steps.delta", $timezone);
 
         $result = [];
         // Obtain the data by day
         for ($i = 0; $i < sizeof($activityData['group']); $i++) {
             $data = $activityData['group'][$i];
             if (sizeof($data['sampleSet']) > 0) {
-                $date = date('Y-m-d', $data['startTime'] / 1000);
+                $date = UnixTimestampToLocalDate($data['startTime'] / 1000, $timezone, 'Y-m-d');
 
                 $steps = 0;
                 for ($h = 0; $h < sizeof($data['sampleSet']); $h++) {
@@ -103,10 +153,10 @@ class HuaweiProvider implements IActivityProvider {
      * {@inheritdoc}
      * @see IActivityProvider::getDetailedActivity()
      */
-    public function getDetailedActivity(OauthResource $resource, $date, $breakdownPeriod, $locale = 'es_ES') {
+    public function getDetailedActivity(OauthResource $resource, $date, $breakdownPeriod, $timezone = 0, $locale = 'es_ES') {
         // The dates must be a timestamp of a 13-digit integer, in milliseconds.
         if (isset($date)) {
-            $startDate = strtotime($date) * 1000;
+            $startDate = localDateToUnixTimestamp($date, $timezone) * 1000;
             // The end date will be the given date plus 24 hours in milliseconds
             $endDate = $startDate + 86400000;
         } else {
@@ -130,14 +180,14 @@ class HuaweiProvider implements IActivityProvider {
         }
 
         // The 'dataTypeName' value is the scope for atomic 'steps'.
-        $activityData = $this->getSampleSet($resource, $startDate, $endDate, $groupByTime, "com.huawei.continuous.steps.delta");
+        $activityData = $this->getSampleSet($resource, $startDate, $endDate, $groupByTime, "com.huawei.continuous.steps.delta", $timezone);
 
         $result = [];
         // Obtain the data by breakdown period
         for ($i = 0; $i < sizeof($activityData['group']); $i++) {
             $data = $activityData['group'][$i];
             if (sizeof($data['sampleSet']) > 0) {
-                $date = date('H:i:s', $data['startTime'] / 1000);
+                $date = UnixTimestampToLocalDate($data['startTime'] / 1000, $timezone, 'H:i:s');
 
                 $steps = 0;
                 for ($h = 0; $h < sizeof($data['sampleSet']); $h++) {
@@ -166,12 +216,12 @@ class HuaweiProvider implements IActivityProvider {
      * {@inheritdoc}
      * @see IActivityProvider::getSleepData()
      */
-    public function getSleepData(OauthResource $resource, $startDate, $endDate, $locale = 'es_ES') {
+    public function getSleepData(OauthResource $resource, $startDate, $endDate, $timezone = 0, $locale = 'es_ES') {
         // The dates must be a timestamp of a 13-digit integer, in milliseconds.
         if (!$endDate) {
             return [];
         } else {
-            $endDate = strtotime($endDate) * 1000;
+            $endDate = localDateToUnixTimestamp($endDate, $timezone) * 1000;
         }
 
         if (!$startDate) {
@@ -179,11 +229,11 @@ class HuaweiProvider implements IActivityProvider {
             // then it'll be the end date minus 24 hours
             $startDate = $endDate - 86400000;
         } else {
-            $startDate = strtotime($startDate) * 1000;
+            $startDate = localDateToUnixTimestamp($startDate, $timezone) * 1000;
         }
 
         // The dataTypeName value is the scope for atomic sleep.
-        $activityData = $this->getSampleSet($resource, $startDate, $endDate, 86400000, "com.huawei.continuous.sleep.fragment");
+        $activityData = $this->getSampleSet($resource, $startDate, $endDate, 86400000, "com.huawei.continuous.sleep.fragment", $timezone);
 
         $result = [];
         // Obtain the data by day
@@ -195,8 +245,8 @@ class HuaweiProvider implements IActivityProvider {
                     for ($v = 0; $v < sizeof($data['sampleSet'][$h]['samplePoints']); $v++) {
                         $samplePoint = $data['sampleSet'][$h]['samplePoints'][$v];
 
-                        $startTime = date('Y-m-d H:i:s', $samplePoint['startTime'] / 1000);
-                        $endTime = date('Y-m-d H:i:s', $samplePoint['endTime'] / 1000);
+                        $startTime = UnixTimestampToLocalDate($samplePoint['startTime'] / 1000, $timezone, 'Y-m-d H:i:s');
+                        $endTime = UnixTimestampToLocalDate($samplePoint['endTime'] / 1000, $timezone, 'Y-m-d H:i:s');
                         for ($k = 0; $k < sizeof($samplePoint['value']); $k++) {
                             $value = $samplePoint['value'][$k]['integerValue'];
                             if ($value > 0) {
@@ -223,7 +273,14 @@ class HuaweiProvider implements IActivityProvider {
      * @param int $endDate
      * @return array
      */
-    private function getSampleSet(OauthResource $resource, $startDate, $endDate, $groupByTime, $dataTypeName) {
+    private function getSampleSet(OauthResource $resource, $startDate, $endDate, $groupByTime, $dataTypeName, $timezone = 0) {
+        // Convert the timezone to a numeric value
+        $timezone = timezoneOffset($timezone);
+        $sign = $timezone < 0 ? '-' : '+';
+        $hours = intval(abs($timezone));
+        $minutes = (abs($timezone) - $hours) * 60;
+        $timezone = sprintf("%s%02d%02d", $sign, $hours, $minutes);
+
         $accessToken = $resource->getAccessToken();
         if (!$accessToken) {
             return [];
@@ -239,7 +296,8 @@ class HuaweiProvider implements IActivityProvider {
                       "startTime": ' . $startDate . ',
                       "endTime": ' . $endDate . ',
                       "groupByTime": {
-                         "duration": ' . $groupByTime . '
+                         "duration": ' . $groupByTime . ',
+                         "timeZone": "' . $timezone . '"
                        }
                     }';
             $baseUrl = Huawei::HEALTH_HUAWEI_API_URL . '/healthkit/v1/sampleSet:polymerize';

@@ -37,9 +37,9 @@ if (isset($_GET['error']) && isset($_GET['error_description'])) {
             'expiration' => $accessToken->getExpires(), 'taskId' => $taskId], $provider);
 
     $additionalValues = $accessToken->getValues();
-    $scope = is_array($additionalValues) ? $additionalValues['scope'] : null;
+    $providerScope = is_array($additionalValues) ? $additionalValues['scope'] ?? '': '';
+    $scope = $provider->normalizeScopes($providerScope);
 }
-
 $LC2redirect = storeAuthorizationUrl($oauthResource, $scope);
 
 header('Location: ' . $LC2redirect);

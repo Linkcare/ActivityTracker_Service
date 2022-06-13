@@ -29,6 +29,14 @@ interface IActivityProvider {
     public function getAccessToken($grant, array $options = []);
 
     /**
+     * Normalizes the proprietary scope names of an Activity provider to standard names
+     *
+     * @param string $scopes
+     * @return string
+     */
+    public function normalizeScopes($scopes);
+
+    /**
      * Obtain the Activity data from the activity provider API using two dates.
      * The date parameters are itself included in the response, they have to be in 'yyyy-MM-dd' format.<br>
      * The return an associative array formatted as follows:
@@ -46,13 +54,14 @@ interface IActivityProvider {
      * </ul>
      *
      * @param OauthResource $resource
-     * @param string $startDate date as 'yyyy-MM-dd'
-     * @param string $endDate date as 'yyyy-MM-dd'
+     * @param string $startDate date as 'yyyy-MM-dd' expressed in the timezone selected
+     * @param string $endDate date as 'yyyy-MM-dd' expressed in the timezone selected
+     * @param number|string $timezone
      * @param string $locale
      * @return array
      *
      */
-    public function getActivityData(OauthResource $resource, $startDate, $endDate, $locale = 'es_ES');
+    public function getActivityData(OauthResource $resource, $startDate, $endDate, $timezone = 0, $locale = 'es_ES');
 
     /**
      * Obtain intraday activity data for a specific day.
@@ -80,12 +89,13 @@ interface IActivityProvider {
      * Access to the FITBIT Intraday Time Series: https://dev.fitbit.com/build/reference/web-api/intraday-requests/
      *
      * @param OauthResource $resource
-     * @param string $date
+     * @param string $date Date expressed in the timezone selected
      * @param string $breakdownPeriod
+     * @param number|string $timezone
      * @param string $locale
      * @return array
      */
-    public function getDetailedActivity(OauthResource $resource, $date, $breakdownPeriod, $locale = 'es_ES');
+    public function getDetailedActivity(OauthResource $resource, $date, $breakdownPeriod, $timezone = 0, $locale = 'es_ES');
 
     /**
      * Obtain sleep data for a range of days or a specific day.
@@ -118,12 +128,13 @@ interface IActivityProvider {
      * </ul>
      *
      * @param OauthResource $resource
-     * @param string $startDate
-     * @param string $endDate
+     * @param string $startDate Date expressed in the timezone selected
+     * @param string $endDate Date expressed in the timezone selected
+     * @param number|string $timezone
      * @param string $locale
      * @return array
      */
-    public function getSleepData(OauthResource $resource, $startDate, $endDate, $locale = 'es_ES');
+    public function getSleepData(OauthResource $resource, $startDate, $endDate, $timezone = 0, $locale = 'es_ES');
 
     /**
      * Obtain a list of devices for the user with its data, which includes 'lastSyncTime'.
