@@ -130,27 +130,29 @@ class HuaweiProvider implements IActivityProvider {
 
         $result = [];
         // Obtain the data by day
-        for ($i = 0; $i < sizeof($activityData['group']); $i++) {
-            $data = $activityData['group'][$i];
-            if (sizeof($data['sampleSet']) > 0) {
-                $date = UnixTimestampToLocalDate($data['startTime'] / 1000, $timezone, 'Y-m-d');
+        if ($activityData['group']) {
+            for ($i = 0; $i < sizeof($activityData['group']); $i++) {
+                $data = $activityData['group'][$i];
+                if (sizeof($data['sampleSet']) > 0) {
+                    $date = UnixTimestampToLocalDate($data['startTime'] / 1000, $timezone, 'Y-m-d');
 
-                $steps = 0;
-                for ($h = 0; $h < sizeof($data['sampleSet']); $h++) {
-                    for ($v = 0; $v < sizeof($data['sampleSet'][$h]['samplePoints']); $v++) {
-                        $samplePoint = $data['sampleSet'][$h]['samplePoints'][$v];
-                        for ($k = 0; $k < sizeof($samplePoint['value']); $k++) {
-                            if ($samplePoint['value'][$k]['fieldName'] == 'steps') {
-                                $steps += $samplePoint['value'][$k]['integerValue'];
+                    $steps = 0;
+                    for ($h = 0; $h < sizeof($data['sampleSet']); $h++) {
+                        for ($v = 0; $v < sizeof($data['sampleSet'][$h]['samplePoints']); $v++) {
+                            $samplePoint = $data['sampleSet'][$h]['samplePoints'][$v];
+                            for ($k = 0; $k < sizeof($samplePoint['value']); $k++) {
+                                if ($samplePoint['value'][$k]['fieldName'] == 'steps') {
+                                    $steps += $samplePoint['value'][$k]['integerValue'];
+                                }
                             }
                         }
                     }
-                }
-                if ($steps > 0) {
-                    $row = [];
-                    $row['dateTime'] = $date;
-                    $row['value'] = $steps;
-                    array_push($result, $row);
+                    if ($steps > 0) {
+                        $row = [];
+                        $row['dateTime'] = $date;
+                        $row['value'] = $steps;
+                        array_push($result, $row);
+                    }
                 }
             }
         }
@@ -193,27 +195,29 @@ class HuaweiProvider implements IActivityProvider {
 
         $result = [];
         // Obtain the data by breakdown period
-        for ($i = 0; $i < sizeof($activityData['group']); $i++) {
-            $data = $activityData['group'][$i];
-            if (sizeof($data['sampleSet']) > 0) {
-                $date = UnixTimestampToLocalDate($data['startTime'] / 1000, $timezone, 'H:i:s');
+        if ($activityData['group']) {
+            for ($i = 0; $i < sizeof($activityData['group']); $i++) {
+                $data = $activityData['group'][$i];
+                if (sizeof($data['sampleSet']) > 0) {
+                    $date = UnixTimestampToLocalDate($data['startTime'] / 1000, $timezone, 'H:i:s');
 
-                $steps = 0;
-                for ($h = 0; $h < sizeof($data['sampleSet']); $h++) {
-                    for ($v = 0; $v < sizeof($data['sampleSet'][$h]['samplePoints']); $v++) {
-                        $samplePoint = $data['sampleSet'][$h]['samplePoints'][$v];
-                        for ($k = 0; $k < sizeof($samplePoint['value']); $k++) {
-                            if ($samplePoint['value'][$k]['fieldName'] == 'steps') {
-                                $steps += $samplePoint['value'][$k]['integerValue'];
+                    $steps = 0;
+                    for ($h = 0; $h < sizeof($data['sampleSet']); $h++) {
+                        for ($v = 0; $v < sizeof($data['sampleSet'][$h]['samplePoints']); $v++) {
+                            $samplePoint = $data['sampleSet'][$h]['samplePoints'][$v];
+                            for ($k = 0; $k < sizeof($samplePoint['value']); $k++) {
+                                if ($samplePoint['value'][$k]['fieldName'] == 'steps') {
+                                    $steps += $samplePoint['value'][$k]['integerValue'];
+                                }
                             }
                         }
                     }
-                }
-                if ($steps > 0) {
-                    $row = [];
-                    $row['time'] = $date;
-                    $row['value'] = $steps;
-                    array_push($result, $row);
+                    if ($steps > 0) {
+                        $row = [];
+                        $row['time'] = $date;
+                        $row['value'] = $steps;
+                        array_push($result, $row);
+                    }
                 }
             }
         }
@@ -246,25 +250,27 @@ class HuaweiProvider implements IActivityProvider {
 
         $result = [];
         // Obtain the data by day
-        for ($i = 0; $i < sizeof($activityData['group']); $i++) {
-            $data = $activityData['group'][$i];
-            if (sizeof($data['sampleSet']) > 0) {
+        if ($activityData['group']) {
+            for ($i = 0; $i < sizeof($activityData['group']); $i++) {
+                $data = $activityData['group'][$i];
+                if (sizeof($data['sampleSet']) > 0) {
 
-                for ($h = 0; $h < sizeof($data['sampleSet']); $h++) {
-                    for ($v = 0; $v < sizeof($data['sampleSet'][$h]['samplePoints']); $v++) {
-                        $samplePoint = $data['sampleSet'][$h]['samplePoints'][$v];
+                    for ($h = 0; $h < sizeof($data['sampleSet']); $h++) {
+                        for ($v = 0; $v < sizeof($data['sampleSet'][$h]['samplePoints']); $v++) {
+                            $samplePoint = $data['sampleSet'][$h]['samplePoints'][$v];
 
-                        $startTime = UnixTimestampToLocalDate($samplePoint['startTime'] / 1000, $timezone, 'Y-m-d H:i:s');
-                        $endTime = UnixTimestampToLocalDate($samplePoint['endTime'] / 1000, $timezone, 'Y-m-d H:i:s');
-                        for ($k = 0; $k < sizeof($samplePoint['value']); $k++) {
-                            $value = $samplePoint['value'][$k]['integerValue'];
-                            if ($value > 0) {
-                                $row = [];
-                                $row['start_time'] = $startTime;
-                                $row['end_time'] = $endTime;
-                                $row['duration'] = $value;
-                                $row['level'] = $samplePoint['value'][$k]['fieldName'];
-                                array_push($result, $row);
+                            $startTime = UnixTimestampToLocalDate($samplePoint['startTime'] / 1000, $timezone, 'Y-m-d H:i:s');
+                            $endTime = UnixTimestampToLocalDate($samplePoint['endTime'] / 1000, $timezone, 'Y-m-d H:i:s');
+                            for ($k = 0; $k < sizeof($samplePoint['value']); $k++) {
+                                $value = $samplePoint['value'][$k]['integerValue'];
+                                if ($value > 0) {
+                                    $row = [];
+                                    $row['start_time'] = $startTime;
+                                    $row['end_time'] = $endTime;
+                                    $row['duration'] = $value;
+                                    $row['level'] = $samplePoint['value'][$k]['fieldName'];
+                                    array_push($result, $row);
+                                }
                             }
                         }
                     }
