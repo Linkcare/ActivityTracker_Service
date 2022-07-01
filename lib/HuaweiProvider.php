@@ -301,32 +301,52 @@ class HuaweiProvider implements IActivityProvider {
             return [];
         }
 
-        try {
-            $body = '{
-                      "polymerizeWith": [
-                        {
-                          "dataTypeName": "' . $dataTypeName . '"
-                        }
-                      ],
-                      "startTime": ' . $startDate . ',
-                      "endTime": ' . $endDate . ',
-                      "groupByTime": {
-                         "duration": ' . $groupByTime . ',
-                         "timeZone": "' . $timezone . '"
-                       }
-                    }';
-            $baseUrl = Huawei::HEALTH_HUAWEI_API_URL . '/healthkit/v1/sampleSet:polymerize';
-            $request = Huawei::getProvider()->getAuthenticatedRequest(Huawei::METHOD_POST, $baseUrl, null,
-                    [
-                            'headers' => [Huawei::HEADER_CONTENT => 'application/json;charset=utf-8',
-                                    Huawei::HEADER_AUTH => 'Bearer ' . $accessToken->getToken()], 'body' => $body]);
+        // Variables in case the required Health API Url was for a different location and we obtained a Forbidden 403 error that provided the correct
+        // one. The request will be inside a do-while, which will be repated if $altLocation has value.
+        $altLocation = null;
+        $testedLocations = [];
+        do {
+            try {
+                $body = '{
+                          "polymerizeWith": [
+                            {
+                              "dataTypeName": "' . $dataTypeName . '"
+                            }
+                          ],
+                          "startTime": ' . $startDate . ',
+                          "endTime": ' . $endDate . ',
+                          "groupByTime": {
+                             "duration": ' . $groupByTime . ',
+                             "timeZone": "' . $timezone . '"
+                           }
+                        }';
+                $baseUrl = $altLocation ?? $this->getHealthApiUrl() . '/healthkit/v1/sampleSet:polymerize';
+                $request = Huawei::getProvider()->getAuthenticatedRequest(Huawei::METHOD_POST, $baseUrl, null,
+                        [
+                                'headers' => [Huawei::HEADER_CONTENT => 'application/json;charset=utf-8',
+                                        Huawei::HEADER_AUTH => 'Bearer ' . $accessToken->getToken()], 'body' => $body]);
 
-            $response = Huawei::getProvider()->getParsedResponse($request);
-        } catch (Exception $e) {
-            // Failed to perform the request.
-            $resource->setErrorCode("request_error");
-            $resource->setErrorDescription($e->getMessage());
-        }
+                $response = Huawei::getProvider()->getParsedResponse($request);
+                $altLocation = null;
+            } catch (\League\OAuth2\Client\Provider\Exception\IdentityProviderException $e) {
+                // If we get a IdentityProviderException, we'll find out if it's returned the Location header, which means the baseUrl we used
+                // was wrong and we need to use the appropiate region url.
+                // This happens with a Forbidden error 403, which will return a Huawei error code 121001 and the message 'request forbidden due to
+                // site cross'
+                if ($e->getResponseBody() instanceof GuzzleHttp\Psr7\Response) {
+                    $altLocation = $e->getResponseBody()->getHeaders()['Location'][0];
+                    error_log("Access to $baseUrl Forbidden. CONFIGURATION SHOULD BE CHANGED TO USE: $altLocation");
+                    // We'll check if the Location has been used before
+                    if (in_array($altLocation, $testedLocations)) {
+                        $altLocation = null;
+                    }
+                }
+            } catch (Exception $e) {
+                // Failed to perform the request.
+                $resource->setErrorCode("request_error");
+                $resource->setErrorDescription($e->getMessage());
+            }
+        } while ($altLocation);
 
         if (!$response || !$response['group']) {
             if ($resource->getErrorCode() == null) {
@@ -352,17 +372,37 @@ class HuaweiProvider implements IActivityProvider {
             return [];
         }
 
-        try {
-            $baseUrl = Huawei::HEALTH_HUAWEI_API_URL . '/healthkit/v1/dataCollectors';
-            $request = Huawei::getProvider()->getAuthenticatedRequest(Huawei::METHOD_GET, $baseUrl, null,
-                    ['headers' => [Huawei::HEADER_CONTENT => 'application/json', Huawei::HEADER_AUTH => 'Bearer ' . $accessToken->getToken()]]);
+        // Variables in case the required Health API Url was for a different location and we obtained a Forbidden 403 error that provided the correct
+        // one. The request will be inside a do-while, which will be repated if $altLocation has value.
+        $altLocation = null;
+        $testedLocations = [];
+        do {
+            try {
+                $baseUrl = $altLocation ?? $this->getHealthApiUrl() . '/healthkit/v1/dataCollectors';
+                $request = Huawei::getProvider()->getAuthenticatedRequest(Huawei::METHOD_GET, $baseUrl, null,
+                        ['headers' => [Huawei::HEADER_CONTENT => 'application/json', Huawei::HEADER_AUTH => 'Bearer ' . $accessToken->getToken()]]);
 
-            $response = Huawei::getProvider()->getParsedResponse($request);
-        } catch (Exception $e) {
-            // Failed to perform the request.
-            $resource->setErrorCode("request_error");
-            $resource->setErrorDescription($e->getMessage());
-        }
+                $response = Huawei::getProvider()->getParsedResponse($request);
+                $altLocation = null;
+            } catch (\League\OAuth2\Client\Provider\Exception\IdentityProviderException $e) {
+                // If we get a IdentityProviderException, we'll find out if it's returned the Location header, which means the baseUrl we used
+                // was wrong and we need to use the appropiate region url.
+                // This happens with a Forbidden error 403, which will return a Huawei error code 121001 and the message 'request forbidden due to
+                // site cross'
+                if ($e->getResponseBody() instanceof GuzzleHttp\Psr7\Response) {
+                    $altLocation = $e->getResponseBody()->getHeaders()['Location'][0];
+                    error_log("Access to $baseUrl Forbidden. CONFIGURATION SHOULD BE CHANGED TO USE: $altLocation");
+                    // We'll check if the Location has been used before
+                    if (in_array($altLocation, $testedLocations)) {
+                        $altLocation = null;
+                    }
+                }
+            } catch (Exception $e) {
+                // Failed to perform the request.
+                $resource->setErrorCode("request_error");
+                $resource->setErrorDescription($e->getMessage());
+            }
+        } while ($altLocation);
 
         if ($response === null) {
             if ($resource->getErrorCode() == null) {
@@ -419,6 +459,20 @@ class HuaweiProvider implements IActivityProvider {
     public function updateActivityGoals(OauthResource $resource, $params = [], $period = 'weekly', $locale = 'es_ES') {
         // Method currently not available for HUAWEI
         return [];
+    }
+
+    /**
+     * Function to obtain the HEALTH_HUAWEI_API_URL, which could be assigned globally in case it's for a specific region.
+     * At the moment, the urls for China and the rest of the world are different.
+     *
+     * @return string
+     */
+    private function getHealthApiUrl() {
+        if ($GLOBALS['HEALTH_HUAWEI_API_URL']) {
+            return $GLOBALS['HEALTH_HUAWEI_API_URL'];
+        } else {
+            return Huawei::HEALTH_HUAWEI_API_URL;
+        }
     }
 }
 ?>
