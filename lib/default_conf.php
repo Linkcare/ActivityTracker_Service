@@ -37,7 +37,7 @@ $GLOBALS['OAUTH_REDIRECT_URI'] = 'redirect_uri';
 
 /*
  * Scopes requested to the user in the OAuth authorization procedure
- * Available scopes: activity, heartrate, location, profile, settings, sleep, social, weight, nutrition
+ * Available scopes: activity, heartrate, location, profile, settings, sleep, social, weight, nutrition, bloodpressure, spo2
  */
 $GLOBALS['PERMISSIONS_REQUESTED'] = ['activity', 'settings', 'profile'];
 

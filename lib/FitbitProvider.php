@@ -34,6 +34,9 @@ class FitbitProvider implements IActivityProvider {
         $addParams = '&prompt=login';
         $scope = [];
         foreach ($GLOBALS['PERMISSIONS_REQUESTED'] as $permission) {
+            if (in_array($permission, ['bloodpressure', 'spo2'])) {
+                continue;
+            }
             $scope[] = $permission;
         }
         $authorizationUrlParams = ['state' => $state, 'scope' => $scope];

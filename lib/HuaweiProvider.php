@@ -8,6 +8,11 @@ use League\OAuth2\Client\Token\AccessToken;
 use function GuzzleHttp\json_decode;
 
 class HuaweiProvider implements IActivityProvider {
+    const ACTIVITY_DATA_TYPE = 'com.huawei.continuous.steps.delta';
+    const SLEEP_DATA_TYPE = "com.huawei.continuous.sleep.fragment";
+    const HEART_RATE_DATA_TYPE = "com.huawei.instantaneous.heart_rate";
+    const BLOOD_PRESSURE_DATA_TYPE = "com.huawei.instantaneous.blood_pressure";
+    const SPO2_DATA_TYPE = "com.huawei.instantaneous.spo2";
 
     /**
      *
@@ -43,6 +48,13 @@ class HuaweiProvider implements IActivityProvider {
                     $scope[] = 'https://www.huawei.com/healthkit/step.read';
                     break;
                 case 'heartrate' :
+                    $scope[] = 'https://www.huawei.com/healthkit/heartrate.read';
+                    break;
+                case 'bloodpressure' :
+                    $scope[] = 'https://www.huawei.com/healthkit/bloodpressure.read';
+                    break;
+                case 'spo2' :
+                    $scope[] = 'https://www.huawei.com/healthkit/oxygensaturation.read';
                     break;
                 case 'location' :
                     break;
@@ -126,7 +138,7 @@ class HuaweiProvider implements IActivityProvider {
         }
 
         // The 'dataTypeName' value is the scope for atomic 'steps'.
-        $activityData = $this->getSampleSet($resource, $startDate, $endDate, 86400000, "com.huawei.continuous.steps.delta", $timezone);
+        $activityData = $this->getSampleSet($resource, $startDate, $endDate, 86400000, self::ACTIVITY_DATA_TYPE, $timezone);
 
         $result = [];
         // Obtain the data by day
@@ -191,7 +203,7 @@ class HuaweiProvider implements IActivityProvider {
         }
 
         // The 'dataTypeName' value is the scope for atomic 'steps'.
-        $activityData = $this->getSampleSet($resource, $startDate, $endDate, $groupByTime, "com.huawei.continuous.steps.delta", $timezone);
+        $activityData = $this->getSampleSet($resource, $startDate, $endDate, $groupByTime, self::ACTIVITY_DATA_TYPE, $timezone);
 
         $result = [];
         // Obtain the data by breakdown period
@@ -246,7 +258,7 @@ class HuaweiProvider implements IActivityProvider {
         }
 
         // The dataTypeName value is the scope for atomic sleep.
-        $activityData = $this->getSampleSet($resource, $startDate, $endDate, 86400000, "com.huawei.continuous.sleep.fragment", $timezone);
+        $activityData = $this->getSampleSet($resource, $startDate, $endDate, 86400000, self::SLEEP_DATA_TYPE, $timezone);
 
         $result = [];
         // Obtain the data by day
