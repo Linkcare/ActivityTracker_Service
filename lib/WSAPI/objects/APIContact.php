@@ -37,9 +37,13 @@ class APIContact {
         $contact->userName = NullableString($xmlNode->username);
         $contact->editable = textToBool((string) $xmlNode->editable);
         if ($xmlNode->data) {
-            $contact->bdate = NullableString($xmlNode->data->bdate);
-            $contact->age = NullableString($xmlNode->data->age);
-            $contact->gender = NullableString($xmlNode->data->gender);
+            if ($xmlNode->data->bdate) {
+                $contact->bdate = NullableString($xmlNode->data->bdate->bdate);
+                $contact->age = NullableString($xmlNode->data->bdate->age);
+            }
+            if ($xmlNode->data->gender) {
+                $contact->gender = NullableString($xmlNode->data->gender->gender);
+            }
         }
         $contact->fullName = NullableString($xmlNode->full_name);
         if ($xmlNode->name) {

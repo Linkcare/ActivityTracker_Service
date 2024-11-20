@@ -38,6 +38,7 @@ class APIQuestion {
     private $name;
     private $unit;
     private $order;
+    private $arrayRef;
     private $row;
     private $column;
     private $decimals;
@@ -66,11 +67,12 @@ class APIQuestion {
         $question->itemCode = NullableString($xmlNode->item_code);
         $question->questionTemplateId = NullableString($xmlNode->question_template_id);
 
-        $question->order = intval((string) $xmlNode->order);
-        $question->row = NullableInt((string) $xmlNode->row);
-        $question->column = NullableInt((string) $xmlNode->column);
-        $question->decimals = NullableInt((string) $xmlNode->num_dec);
-        $question->mandatory = textToBool((string) $xmlNode->mandatory);
+        $question->order = intval(trim($xmlNode->order));
+        $question->arrayRef = NullableString($xmlNode->array_ref);
+        $question->row = NullableInt($xmlNode->row);
+        $question->column = NullableInt($xmlNode->column);
+        $question->decimals = NullableInt($xmlNode->num_dec);
+        $question->mandatory = textToBool(trim($xmlNode->mandatory));
         $question->description = NullableString($xmlNode->description);
         $question->descriptionOnEdit = NullableString($xmlNode->description_onedit);
         $question->constraint = NullableString($xmlNode->constraint);
@@ -164,10 +166,7 @@ class APIQuestion {
      * @return int
      */
     public function getArrayRef() {
-        if ($this->getRow()) {
-            return $this->order;
-        }
-        return null;
+        return $this->arrayRef;
     }
 
     /**
@@ -287,7 +286,7 @@ class APIQuestion {
      * @param string $value
      */
     public function setArrayRef($value) {
-        $this->order = $value;
+        $this->arrayRef = $value;
     }
 
     /**
